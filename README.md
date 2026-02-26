@@ -1,60 +1,90 @@
-# Markdown for Gmail Chrome Extension
+# Markdown for Gmail
 
-This extension allows you to write emails in Markdown when composing a message in Gmail. Convert the Markdown to rich text via the provided context menu item or with the keyboard shortcut `Ctrl+Shift+M`.
-
-
-An options page allows you to configure automatic conversion on paste, parser settings, emoji support, and a custom keyboard shortcut. The shortcut string recognizes `ctrl`, `shift`, `alt`, and `cmd`/`meta` tokens so macOS users can specify combinations like `cmd+shift+m`. When you save a new shortcut it is applied to the extension's command automatically, so there is no need to update it through the **Extension shortcuts** page.
+A Chrome extension that lets you compose Gmail messages in Markdown and convert them to rich HTML with a single shortcut or right-click.
 
 ## Features
-- Write emails in pure Markdown directly in Gmail.
-- Convert Markdown to rich text from the context menu or by pressing `Ctrl+Shift+M`.
-- Convert existing HTML back to Markdown with `Ctrl+Shift+H`.
-- Automatically convert text on paste or when sending the message.
-- Supports GitHub‑flavored Markdown and optional HTML sanitization.
-- Extensive emoji shortcode map with characters left intact when typed directly.
-- Choose between *clean*, *Notion-style*, or *email-friendly* themes.
-- Configure a custom keyboard shortcut or disable the default one.
+
+- **Markdown to Rich Text** — write in Markdown, then press `Ctrl+Shift+M` (or right-click → *Convert Markdown to Rich Text*) to render it as formatted HTML inside the Gmail compose window.
+- **HTML to Markdown** — reverse the conversion with `Ctrl+Shift+H` (or right-click → *Convert HTML to Markdown*).
+- **Auto-convert on paste** — optionally convert pasted Markdown automatically.
+- **Auto-convert on send** — convert just before the message is sent.
+- **GitHub-flavored Markdown** — tables, task lists, strikethrough, and more via the [Marked](https://github.com/markedjs/marked) library.
+- **Emoji shortcodes** — type `:rocket:` or `:heart:` and they become 🚀 and ❤️. Over 1 000 GitHub-style codes are supported. Emoji characters you type directly (e.g. 👍) are left untouched.
+- **Readable links** — `[text](url)` is converted to `text (url)` so recipients see real URLs.
+- **Themes** — choose *Clean*, *Notion-style*, or *Email-friendly* in the options page.
+- **Custom keyboard shortcuts** — set any modifier+key combo (e.g. `Cmd+Shift+M` on macOS). The extension command is updated automatically when you save.
 
 ## Installation
-1. Clone this repository.
-2. Open Chrome and navigate to `chrome://extensions`.
-3. Enable **Developer mode**.
-4. Click **Load unpacked** and choose this folder.
 
-## How to Use
-- Compose a new email in Gmail and write it using Markdown syntax.
-- Right-click inside the editable area and choose **Convert Markdown to Rich Text**, or press `Ctrl+Shift+M`.
-- Use **Convert HTML to Markdown** from the context menu (or `Ctrl+Shift+H`) to reverse the conversion in Gmail.
-- The extension converts the Markdown to rich text within the compose area and can convert existing HTML back to Markdown when requested.
-- Emoji shortcodes like `:smile:` are automatically converted to their corresponding characters.
-- The extension now includes a comprehensive emoji map so most GitHub-style codes are recognized.
-- Emoji characters you type directly, like 👍, stay unchanged when converting.
-- Links written as `[text](url)` become plain `text (url)` links for readability.
-- Choose between *clean*, *Notion-style*, or *email-friendly* themes for rendered Markdown.
+1. Clone or download this repository.
+2. Open `chrome://extensions` in Chrome.
+3. Enable **Developer mode** (top-right toggle).
+4. Click **Load unpacked** and select the repository folder.
+
+## Usage
+
+1. Open Gmail and compose a new message.
+2. Write your email using Markdown syntax.
+3. Press **Ctrl+Shift+M** or right-click and choose **Convert Markdown to Rich Text**.
+4. The Markdown is replaced with formatted HTML inside the compose area.
+
+To reverse: press **Ctrl+Shift+H** or right-click → **Convert HTML to Markdown**.
+
+### Options
+
+Click the extension icon → *Options* (or go to `chrome://extensions` → *Details* → *Extension options*) to configure:
+
+| Option | Description |
+|---|---|
+| Convert on Paste | Auto-convert Markdown when you paste text |
+| Convert on Send | Convert just before the message is sent |
+| GitHub flavored Markdown | Enable GFM extensions (tables, task lists, etc.) |
+| Sanitize HTML | Strip potentially unsafe HTML tags |
+| Theme | Choose between Clean, Notion-style, or Email-friendly |
+| Custom Shortcut | Override the default `Ctrl+Shift+M` shortcut |
+| Disable default shortcut | Turn off the built-in keyboard command |
+
+## Project Structure
+
+```
+├── manifest.json        # Chrome Extension Manifest v3
+├── background.js        # Service worker — context menus & command handling
+├── contentScript.js     # Content script — paste/send observers, shortcut matching
+├── injector.js          # Dynamically injected for Markdown → HTML conversion
+├── html2md.js           # Dynamically injected for HTML → Markdown conversion
+├── turndown.js          # Lightweight HTML-to-Markdown converter
+├── emoji.js             # 1 000+ emoji shortcode mappings
+├── marked.min.js        # Marked v9.1.2 (bundled)
+├── options.html/js/css  # Extension options page
+├── themes.css           # Theme stylesheets
+├── icons/icon.png       # Toolbar icon
+└── test/                # Mocha + Chai test suite
+```
 
 ## Development
-The conversion is performed using the [Marked](https://github.com/markedjs/marked) library which is bundled inside `injector.js`.
 
+### Prerequisites
 
-## Packaging
-1. Ensure that all extension files are present and any build steps have been run.
-2. Compress the entire extension folder into a `.zip` archive. This is the package that will be uploaded.
-3. Sign in to the [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole) and upload the zip file as a new item or update.
-4. Follow the Chrome Web Store instructions to submit the extension for review and publication.
-5. Update the `version` field in `manifest.json` before submitting a new release.
+- Node.js (for running tests)
 
-![Gmail Markdown conversion example](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMB/6XdvFUAAAAASUVORK5CYII=)
-## Running Tests
-First install the development dependencies with:
+### Install dependencies
+
 ```bash
 npm install
 ```
-This installs packages like `mocha` that are needed for the test suite.
 
-Run the tests using:
+### Run tests
+
 ```bash
 npm test
 ```
 
-![Gmail Markdown conversion example](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMB/6XdvFUAAAAASUVORK5CYII=)
+### Packaging for the Chrome Web Store
 
+1. Update the `version` field in `manifest.json`.
+2. Zip the extension folder (excluding `node_modules/` and `.git/`).
+3. Upload to the [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole).
+
+## License
+
+See [LICENSE](LICENSE) for details.

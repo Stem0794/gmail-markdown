@@ -8,23 +8,19 @@
     shortcut: 'Ctrl+Shift+M',
     disableDefault: false
   };
-  const DEBUG = typeof window !== 'undefined' && window.GM_DEBUG;
-  function debugLog(...args) {
-    if (DEBUG) console.log('[gmail-md]', ...args);
-  }
-  const EMOJI_MAP = typeof window !== "undefined" && window.EMOJI_MAP ? window.EMOJI_MAP : {};
 
-
+  const SELECTOR = 'div[aria-label="Message Body"][contenteditable="true"]';
 
   function getEditable() {
-    return document.querySelector('div[aria-label="Message Body"][contenteditable="true"]');
+    return document.querySelector(SELECTOR);
   }
 
   function replaceEmojis(text) {
-    if (typeof window !== "undefined" && window.replaceEmojis) {
+    if (typeof window !== 'undefined' && window.replaceEmojis) {
       return window.replaceEmojis(text);
     }
-    return text.replace(/:([a-zA-Z0-9_+-]+):/g, (m, p1) => EMOJI_MAP[p1] || m);
+    const map = (typeof window !== 'undefined' && window.EMOJI_MAP) || {};
+    return text.replace(/:([a-zA-Z0-9_+-]+):/g, (m, p1) => map[p1] || m);
   }
 
   function convertLinksToReadable(text) {
@@ -48,33 +44,6 @@
     }
   }
 
-  function observeShortcuts() {}
-
-  if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
-    chrome.storage.sync.get(DEFAULTS, (opts) => {
-      const { convertOnPaste, autoConvert, shortcut, theme } = opts;
-
-    applyTheme(theme);
-
-    if (convertOnPaste) {
-      observePaste((text) => convertMarkdown(opts, text));
-    }
-
-    if (autoConvert) {
-      observeSendButton(() => convertMarkdown(opts));
-    }
-
-    if (shortcut) {
-      document.addEventListener('keydown', (e) => {
-        if (matchesShortcut(e, shortcut)) {
-          e.preventDefault();
-          convertMarkdown(opts);
-        }
-      });
-    }
-    });
-  }
-
   function matchesShortcut(e, combo) {
     const parts = combo.toLowerCase().split('+');
     const key = parts.pop();
@@ -91,6 +60,8 @@
 
   function observePaste(callback) {
     function attachListener(body) {
+      if (body._mdPasteAttached) return;
+      body._mdPasteAttached = true;
       body.addEventListener('paste', (e) => {
         const text = e.clipboardData.getData('text/plain');
         if (text) {
@@ -101,28 +72,25 @@
     }
 
     const existing = getEditable();
-    if (existing) {
-      attachListener(existing);
-      return;
-    }
+    if (existing) attachListener(existing);
 
     const observer = new MutationObserver(() => {
       const body = getEditable();
-      if (body) {
-        attachListener(body);
-        observer.disconnect();
-      }
+      if (body) attachListener(body);
     });
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
   function observeSendButton(callback) {
+    function attachListener(btn) {
+      if (btn._mdSendAttached) return;
+      btn._mdSendAttached = true;
+      btn.addEventListener('click', () => callback(), true);
+    }
+
     const observer = new MutationObserver(() => {
       const btn = document.querySelector('div[aria-label^="Send"]');
-      if (btn) {
-        btn.addEventListener('click', () => callback(), true);
-        observer.disconnect();
-      }
+      if (btn) attachListener(btn);
     });
     observer.observe(document.body, { childList: true, subtree: true });
   }
@@ -135,7 +103,13 @@
     const script = document.createElement('script');
     script.src = chrome.runtime.getURL('marked.min.js');
     script.onload = cb;
+    script.onerror = () => console.warn('[gmail-md] Failed to load marked library');
     document.documentElement.appendChild(script);
+  }
+
+  function getMarkedOpts(opts) {
+    // marked v9+ removed the sanitize option; only pass gfm
+    return { gfm: opts.gfm };
   }
 
   function convertMarkdown(opts, markdownText) {
@@ -145,7 +119,7 @@
       if (!emailBody || typeof marked?.parse !== 'function') return;
       const selection = window.getSelection();
       const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
-      const markedOpts = { gfm: opts.gfm, sanitize: opts.sanitize };
+      const markedOpts = getMarkedOpts(opts);
 
       if (markdownText !== undefined) {
         const converted = convertLinksToReadable(markdownText);
@@ -177,11 +151,30 @@
     });
   }
 
+  if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
+    chrome.storage.sync.get(DEFAULTS, (opts) => {
+      applyTheme(opts.theme);
+
+      if (opts.convertOnPaste) {
+        observePaste((text) => convertMarkdown(opts, text));
+      }
+
+      if (opts.autoConvert) {
+        observeSendButton(() => convertMarkdown(opts));
+      }
+
+      if (opts.shortcut) {
+        document.addEventListener('keydown', (e) => {
+          if (matchesShortcut(e, opts.shortcut)) {
+            e.preventDefault();
+            convertMarkdown(opts);
+          }
+        });
+      }
+    });
+  }
+
   if (typeof module !== 'undefined') {
-      module.exports = {
-        convertLinksToReadable,
-        matchesShortcut,
-        applyTheme
-      };
+    module.exports = { convertLinksToReadable, matchesShortcut, applyTheme };
   }
 })();

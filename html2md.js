@@ -1,33 +1,38 @@
-(function(){
+(function () {
   'use strict';
-  const MAX_ATTEMPTS = 50;
-  let attempts = 0;
 
-  const interval = setInterval(() => {
-    const emailBody = document.querySelector('div[aria-label="Message Body"][contenteditable="true"]');
-    if(emailBody && typeof TurndownService !== 'undefined'){
+  var SELECTOR = 'div[aria-label="Message Body"][contenteditable="true"]';
+  var MAX_ATTEMPTS = 50;
+  var attempts = 0;
+
+  var interval = setInterval(function () {
+    var emailBody = document.querySelector(SELECTOR);
+    if (emailBody && typeof TurndownService !== 'undefined') {
       clearInterval(interval);
-      const selection = window.getSelection();
-      const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
-      const td = new TurndownService();
+      var selection = window.getSelection();
+      var range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+      var td = new TurndownService();
 
-      if(range && emailBody.contains(range.commonAncestorContainer) && selection.toString().trim()){
-        const frag = range.cloneContents();
-        const div = document.createElement('div');
+      if (range && emailBody.contains(range.commonAncestorContainer) && selection.toString().trim()) {
+        var frag = range.cloneContents();
+        var div = document.createElement('div');
         div.appendChild(frag);
-        const md = td.turndown(div.innerHTML);
+        var md = td.turndown(div.innerHTML);
         range.deleteContents();
         range.insertNode(document.createTextNode(md));
         range.collapse(false);
-      }else{
-        const md = td.turndown(emailBody.innerHTML);
+      } else {
+        var md = td.turndown(emailBody.innerHTML);
         emailBody.innerText = md;
       }
-    }else{
+
+      emailBody.dispatchEvent(new Event('input', { bubbles: true }));
+    } else {
       attempts++;
-      if(attempts > MAX_ATTEMPTS){
+      if (attempts > MAX_ATTEMPTS) {
         clearInterval(interval);
+        console.warn('[gmail-md] Timed out waiting for email body or TurndownService');
       }
     }
-  },300);
+  }, 300);
 })();
