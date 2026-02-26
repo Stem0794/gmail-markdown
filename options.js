@@ -3,6 +3,7 @@ var DEFAULTS = {
   autoConvert: false,
   gfm: true,
   sanitize: false,
+  liveFormat: false,
   theme: 'clean',
   shortcut: 'Ctrl+Shift+M',
   disableDefault: false
@@ -34,6 +35,7 @@ function saveOptions() {
     autoConvert: document.getElementById('autoConvert').checked,
     gfm: document.getElementById('gfm').checked,
     sanitize: document.getElementById('sanitize').checked,
+    liveFormat: document.getElementById('liveFormat').checked,
     theme: document.getElementById('theme').value,
     shortcut: shortcutInput || DEFAULTS.shortcut,
     disableDefault: document.getElementById('disableDefault').checked
@@ -61,6 +63,7 @@ function restoreOptions() {
     document.getElementById('autoConvert').checked = items.autoConvert;
     document.getElementById('gfm').checked = items.gfm;
     document.getElementById('sanitize').checked = items.sanitize;
+    document.getElementById('liveFormat').checked = items.liveFormat;
     document.getElementById('theme').value = items.theme;
     document.getElementById('shortcut').value = items.shortcut;
     document.getElementById('disableDefault').checked = items.disableDefault;

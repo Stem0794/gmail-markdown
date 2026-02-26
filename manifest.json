@@ -12,7 +12,7 @@
   "content_scripts": [
     {
       "matches": ["https://mail.google.com/*"],
-      "js": ["emoji.js", "contentScript.js"],
+      "js": ["emoji.js", "contentScript.js", "liveFormat.js"],
       "run_at": "document_idle"
     }
   ],
