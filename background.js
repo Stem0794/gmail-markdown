@@ -1,60 +1,56 @@
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
-    id: "convert-md",
-    title: "Convert Markdown to Rich Text",
-    contexts: ["editable"]
+    id: 'convert-md',
+    title: 'Convert Markdown to Rich Text',
+    contexts: ['editable']
   });
   chrome.contextMenus.create({
-    id: "convert-html-md",
-    title: "Convert HTML to Markdown",
-    contexts: ["editable"]
+    id: 'convert-html-md',
+    title: 'Convert HTML to Markdown',
+    contexts: ['editable']
   });
 });
 
-function injectMarkdownTools(tabId) {
-  chrome.scripting.executeScript({
-    target: { tabId },
-    files: ['marked.min.js']
-  }, () => {
-    chrome.scripting.executeScript({
-      target: { tabId },
-      files: ['injector.js']
-    });
-  });
+async function injectMarkdownTools(tabId) {
+  try {
+    await chrome.scripting.executeScript({ target: { tabId }, files: ['marked.min.js'] });
+    await chrome.scripting.executeScript({ target: { tabId }, files: ['injector.js'] });
+  } catch (err) {
+    console.warn('[gmail-md] Failed to inject markdown tools:', err.message);
+  }
 }
 
-function injectHtmlToMarkdown(tabId) {
-  chrome.scripting.executeScript({
-    target: { tabId },
-    files: ['turndown.js']
-  }, () => {
-    chrome.scripting.executeScript({
-      target: { tabId },
-      files: ['html2md.js']
-    });
-  });
+async function injectHtmlToMarkdown(tabId) {
+  try {
+    await chrome.scripting.executeScript({ target: { tabId }, files: ['turndown.js'] });
+    await chrome.scripting.executeScript({ target: { tabId }, files: ['html2md.js'] });
+  } catch (err) {
+    console.warn('[gmail-md] Failed to inject HTML-to-MD tools:', err.message);
+  }
 }
 
-chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId === "convert-md") {
-    injectMarkdownTools(tab.id);
-  } else if (info.menuItemId === "convert-html-md") {
-    injectHtmlToMarkdown(tab.id);
+async function getActiveTabId() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  return tab?.id;
+}
+
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (!tab?.id) return;
+  if (info.menuItemId === 'convert-md') {
+    await injectMarkdownTools(tab.id);
+  } else if (info.menuItemId === 'convert-html-md') {
+    await injectHtmlToMarkdown(tab.id);
   }
 });
 
-chrome.commands.onCommand.addListener((command) => {
-  if (command === "convert_markdown") {
-    chrome.storage.sync.get({ disableDefault: false }, ({ disableDefault }) => {
-      if (disableDefault) return;
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        injectMarkdownTools(tabs[0].id);
-      });
-    });
-  } else if (command === "convert_html_markdown") {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      injectHtmlToMarkdown(tabs[0].id);
-    });
+chrome.commands.onCommand.addListener(async (command) => {
+  if (command === 'convert_markdown') {
+    const { disableDefault } = await chrome.storage.sync.get({ disableDefault: false });
+    if (disableDefault) return;
+    const tabId = await getActiveTabId();
+    if (tabId) await injectMarkdownTools(tabId);
+  } else if (command === 'convert_html_markdown') {
+    const tabId = await getActiveTabId();
+    if (tabId) await injectHtmlToMarkdown(tabId);
   }
 });
-
