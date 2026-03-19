@@ -101,27 +101,30 @@
           return;
         }
       }
-    }
 
-    const formats = [
-      { reg: /(\*\*|__)(.+?)\1$/, cmd: 'bold' },
-      { reg: /(\*|_)(.+?)\1$/, cmd: 'italic' },
-      { reg: /~~(.+?)~~$/, cmd: 'strikeThrough' },
-      { reg: /`(.+?)`$/, cmd: 'code' }
-    ];
+      // Inline formatting (only on Space)
+      const formats = [
+        { reg: /(\*\*|__)(.+?)\1$/, cmd: 'bold' },
+        { reg: /(\*|_)(.+?)\1$/, cmd: 'italic' },
+        { reg: /~~(.+?)~~$/, cmd: 'strikeThrough' },
+        { reg: /`(.+?)`$/, cmd: 'code' }
+      ];
 
-    for (const format of formats) {
-      const match = textBefore.match(format.reg);
-      if (match) {
-        debugLog('Applying inline format', { cmd: format.cmd, match: match[0] });
-        applyInline(container, idx, match[0], format.cmd, e);
-        return;
+      for (const format of formats) {
+        const match = textBefore.match(format.reg);
+        if (match) {
+          debugLog('Applying inline format', { cmd: format.cmd, match: match[0] });
+          applyInline(container, idx, match[0], format.cmd, e);
+          return;
+        }
       }
     }
 
     if (e.key === 'Enter') {
-       if (textBefore.trim() === '---' && idx === textBefore.length) {
+       // Horizontal Rule check: --- at the start of a line
+       if (textBefore.trim() === '---') {
          e.preventDefault();
+         debugLog('Applying horizontal rule');
          const delRange = document.createRange();
          delRange.setStart(container, idx - 3);
          delRange.setEnd(container, idx);
@@ -145,20 +148,18 @@
       const html = `<code style="background-color: #f2f2f2; padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.9em;">${content}</code>\u00A0`;
       document.execCommand('insertHTML', false, html);
     } else {
-      document.execCommand('insertHTML', false, content);
+      // For Gmail, we use insertHTML with a styled span to ensure it sticks
+      let style = '';
+      if (command === 'bold') style = 'font-weight: bold;';
+      else if (command === 'italic') style = 'font-style: italic;';
+      else if (command === 'strikeThrough') style = 'text-decoration: line-through;';
+      
+      const html = `<span style="${style}">${content}</span>\u00A0`;
+      document.execCommand('insertHTML', false, html);
+      
+      // Move selection to after the space
       const sel = window.getSelection();
-      const newRange = document.createRange();
-      newRange.setStart(sel.anchorNode, sel.anchorOffset - content.length);
-      newRange.setEnd(sel.anchorNode, sel.anchorOffset);
-      sel.removeAllRanges();
-      sel.addRange(newRange);
-      document.execCommand(command);
       sel.collapseToEnd();
-      if (e.key === ' ') {
-        document.execCommand('insertText', false, ' ');
-      } else {
-        document.execCommand('insertParagraph');
-      }
     }
   }
 
