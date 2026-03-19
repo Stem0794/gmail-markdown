@@ -12,7 +12,6 @@
   const SELECTOR = 'div[aria-label="Message Body"][contenteditable="true"]';
 
   function debugLog(...args) {
-    // Only log if GM_DEBUG is enabled
     if (window.GM_DEBUG) console.log('[gmail-md]', ...args);
   }
 
@@ -55,7 +54,12 @@
     let offset = range.startOffset;
     
     if (container.nodeType !== Node.TEXT_NODE) {
-      return;
+      if (container.childNodes[offset - 1] && container.childNodes[offset - 1].nodeType === Node.TEXT_NODE) {
+        container = container.childNodes[offset - 1];
+        offset = container.textContent.length;
+      } else {
+        return;
+      }
     }
     
     const text = container.textContent;
@@ -119,10 +123,9 @@
     }
 
     if (e.key === 'Enter') {
-      // Trigger horizontal rule on --- + Enter
       if (textBefore.trim() === '---') {
         e.preventDefault();
-        deleteBackwards(textBefore.length); // Delete everything before the cursor in this node
+        deleteBackwards(textBefore.length);
         document.execCommand('insertHorizontalRule');
       }
     }
@@ -222,8 +225,8 @@
   function convertMarkdown(opts, markdownText) {
     applyTheme(opts.theme);
     const emailBody = getEditable();
-    // 'marked' is now globally available from manifest content scripts
-    if (!emailBody || typeof marked?.parse !== 'function') {
+    const markedLib = window.marked || (typeof marked !== 'undefined' ? marked : null);
+    if (!emailBody || !markedLib || typeof markedLib.parse !== 'function') {
       console.warn('[gmail-md] Marked library not ready');
       return;
     }
@@ -232,16 +235,16 @@
     const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
 
     if (markdownText !== undefined) {
-      const html = marked.parse(markdownText, { gfm: opts.gfm });
+      const html = markedLib.parse(markdownText, { gfm: opts.gfm });
       document.execCommand('insertHTML', false, html);
       return;
     }
 
     if (range && emailBody.contains(range.commonAncestorContainer) && selection.toString().trim()) {
-      const html = marked.parse(selection.toString(), { gfm: opts.gfm });
+      const html = markedLib.parse(selection.toString(), { gfm: opts.gfm });
       document.execCommand('insertHTML', false, html);
     } else {
-      const html = marked.parse(emailBody.innerText, { gfm: opts.gfm });
+      const html = markedLib.parse(emailBody.innerText, { gfm: opts.gfm });
       emailBody.innerHTML = html;
     }
     emailBody.dispatchEvent(new Event('input', { bubbles: true }));
