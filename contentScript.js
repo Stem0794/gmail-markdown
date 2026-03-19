@@ -12,6 +12,10 @@
 
   const SELECTOR = 'div[aria-label="Message Body"][contenteditable="true"]';
 
+  function debugLog(...args) {
+    if (window.GM_DEBUG) console.log('[gmail-md]', ...args);
+  }
+
   function getEditable() {
     return document.querySelector(SELECTOR);
   }
@@ -47,69 +51,81 @@
 
   function applyAutoFormat(e, body) {
     if (e.key !== ' ' && e.key !== 'Enter') return;
+    
     const sel = window.getSelection();
     if (!sel.rangeCount) return;
     const range = sel.getRangeAt(0);
     if (!body.contains(range.startContainer)) return;
+    
     let container = range.startContainer;
     let idx = range.startOffset;
-    if (container.nodeType !== Node.TEXT_NODE) return;
+    
+    if (container.nodeType !== Node.TEXT_NODE) {
+      if (container.childNodes[idx - 1] && container.childNodes[idx - 1].nodeType === Node.TEXT_NODE) {
+        container = container.childNodes[idx - 1];
+        idx = container.textContent.length;
+      } else {
+        return;
+      }
+    }
+    
     const text = container.textContent;
     const textBefore = text.slice(0, idx);
+    
+    debugLog('Auto-format check', { key: e.key, textBefore });
 
     if (e.key === ' ') {
       const trimmedPrefix = textBefore.trim();
-      const isStartOfLine = (idx === textBefore.length) && (textBefore.trimStart().length === textBefore.length);
-
+      const isStartOfLine = (textBefore.trimStart() === trimmedPrefix);
+      
       if (isStartOfLine) {
-        if (trimmedPrefix === '#') {
+        let command = null;
+        let arg = null;
+        let prefixLen = 0;
+
+        if (trimmedPrefix === '#') { command = 'formatBlock'; arg = 'H1'; prefixLen = 1; }
+        else if (trimmedPrefix === '##') { command = 'formatBlock'; arg = 'H2'; prefixLen = 2; }
+        else if (trimmedPrefix === '###') { command = 'formatBlock'; arg = 'H3'; prefixLen = 3; }
+        else if (trimmedPrefix === '*' || trimmedPrefix === '-') { command = 'insertUnorderedList'; prefixLen = 1; }
+        else if (/^\d+\.$/.test(trimmedPrefix)) { command = 'insertOrderedList'; prefixLen = trimmedPrefix.length; }
+        else if (trimmedPrefix === '>') { command = 'formatBlock'; arg = 'blockquote'; prefixLen = 1; }
+
+        if (command) {
+          debugLog('Applying block format', { command, arg });
           e.preventDefault();
-          container.textContent = text.slice(idx);
-          document.execCommand('formatBlock', false, 'H1');
-          return;
-        } else if (trimmedPrefix === '##') {
-          e.preventDefault();
-          container.textContent = text.slice(idx);
-          document.execCommand('formatBlock', false, 'H2');
-          return;
-        } else if (trimmedPrefix === '###') {
-          e.preventDefault();
-          container.textContent = text.slice(idx);
-          document.execCommand('formatBlock', false, 'H3');
-          return;
-        } else if (trimmedPrefix === '*' || trimmedPrefix === '-') {
-          e.preventDefault();
-          container.textContent = text.slice(idx);
-          document.execCommand('insertUnorderedList');
-          return;
-        } else if (/^\d+\.$/.test(trimmedPrefix)) {
-          e.preventDefault();
-          container.textContent = text.slice(idx);
-          document.execCommand('insertOrderedList');
-          return;
-        } else if (trimmedPrefix === '>') {
-          e.preventDefault();
-          container.textContent = text.slice(idx);
-          document.execCommand('formatBlock', false, 'blockquote');
+          const delRange = document.createRange();
+          delRange.setStart(container, idx - prefixLen);
+          delRange.setEnd(container, idx);
+          delRange.deleteContents();
+          document.execCommand(command, false, arg);
           return;
         }
       }
     }
 
-    const boldMatch = textBefore.match(/(\*\*|__)(.+?)\1$/);
-    const italicMatch = textBefore.match(/(\*|_)(.+?)\1$/);
-    const strikeMatch = textBefore.match(/~~(.+?)~~$/);
-    const codeMatch = textBefore.match(/`(.+?)`$/);
+    const formats = [
+      { reg: /(\*\*|__)(.+?)\1$/, cmd: 'bold' },
+      { reg: /(\*|_)(.+?)\1$/, cmd: 'italic' },
+      { reg: /~~(.+?)~~$/, cmd: 'strikeThrough' },
+      { reg: /`(.+?)`$/, cmd: 'code' }
+    ];
 
-    if (boldMatch) { applyInline(container, idx, boldMatch[0], 'bold', e); return; }
-    if (italicMatch) { applyInline(container, idx, italicMatch[0], 'italic', e); return; }
-    if (strikeMatch) { applyInline(container, idx, strikeMatch[0], 'strikeThrough', e); return; }
-    if (codeMatch) { applyInline(container, idx, codeMatch[0], 'code', e); return; }
+    for (const format of formats) {
+      const match = textBefore.match(format.reg);
+      if (match) {
+        debugLog('Applying inline format', { cmd: format.cmd, match: match[0] });
+        applyInline(container, idx, match[0], format.cmd, e);
+        return;
+      }
+    }
 
     if (e.key === 'Enter') {
        if (textBefore.trim() === '---' && idx === textBefore.length) {
          e.preventDefault();
-         container.textContent = text.slice(idx);
+         const delRange = document.createRange();
+         delRange.setStart(container, idx - 3);
+         delRange.setEnd(container, idx);
+         delRange.deleteContents();
          document.execCommand('insertHorizontalRule');
        }
     }
@@ -117,32 +133,27 @@
 
   function applyInline(container, idx, match, command, e) {
     e.preventDefault();
-    const text = container.textContent;
     const startIdx = idx - match.length;
     const content = match.replace(/^(\*\*|__|~~|\*|_|`)|(\*\*|__|~~|\*|_|`)$/g, '');
-
-    container.textContent = text.slice(0, startIdx) + text.slice(idx);
-
-    const sel = window.getSelection();
+    
     const range = document.createRange();
     range.setStart(container, startIdx);
-    range.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(range);
-
+    range.setEnd(container, idx);
+    range.deleteContents();
+    
     if (command === 'code') {
       const html = `<code style="background-color: #f2f2f2; padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.9em;">${content}</code>\u00A0`;
       document.execCommand('insertHTML', false, html);
     } else {
       document.execCommand('insertHTML', false, content);
-      const newSel = window.getSelection();
+      const sel = window.getSelection();
       const newRange = document.createRange();
-      newRange.setStart(container, startIdx);
-      newRange.setEnd(container, startIdx + content.length);
-      newSel.removeAllRanges();
-      newSel.addRange(newRange);
+      newRange.setStart(sel.anchorNode, sel.anchorOffset - content.length);
+      newRange.setEnd(sel.anchorNode, sel.anchorOffset);
+      sel.removeAllRanges();
+      sel.addRange(newRange);
       document.execCommand(command);
-      newSel.collapseToEnd();
+      sel.collapseToEnd();
       if (e.key === ' ') {
         document.execCommand('insertText', false, ' ');
       } else {
@@ -183,10 +194,7 @@
             '<div class="md-callout" contenteditable="true" ' +
             'style="background:#f2f2f2;padding:8px;border-radius:4px;">' +
             'Important info</div>';
-          if (
-            document.queryCommandSupported &&
-            document.queryCommandSupported('insertHTML')
-          ) {
+          if (document.queryCommandSupported && document.queryCommandSupported('insertHTML')) {
             document.execCommand('insertHTML', false, html);
           } else {
             const temp = document.createElement('div');
@@ -238,10 +246,8 @@
         }
       }, true);
     }
-
     const existing = getEditable();
     if (existing) attachListener(existing);
-
     const observer = new MutationObserver(() => {
       const body = getEditable();
       if (body) attachListener(body);
@@ -255,7 +261,6 @@
       btn._mdSendAttached = true;
       btn.addEventListener('click', () => callback(), true);
     }
-
     const observer = new MutationObserver(() => {
       const btn = document.querySelector('div[aria-label^="Send"]');
       if (btn) attachListener(btn);
@@ -322,15 +327,12 @@
     chrome.storage.sync.get(DEFAULTS, (opts) => {
       applyTheme(opts.theme);
       observeShortcuts(opts);
-
       if (opts.convertOnPaste) {
         observePaste((text) => convertMarkdown(opts, text));
       }
-
       if (opts.autoConvert) {
         observeSendButton(() => convertMarkdown(opts));
       }
-
       if (opts.shortcut) {
         document.addEventListener('keydown', (e) => {
           if (matchesShortcut(e, opts.shortcut)) {
