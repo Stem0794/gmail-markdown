@@ -64,6 +64,9 @@
       if (container.childNodes[idx - 1] && container.childNodes[idx - 1].nodeType === Node.TEXT_NODE) {
         container = container.childNodes[idx - 1];
         idx = container.textContent.length;
+      } else if (container.lastChild && container.lastChild.nodeType === Node.TEXT_NODE) {
+        container = container.lastChild;
+        idx = container.textContent.length;
       } else {
         return;
       }
@@ -78,7 +81,7 @@
       const trimmedPrefix = textBefore.trim();
       const isStartOfLine = (textBefore.trimStart() === trimmedPrefix);
       
-      if (isStartOfLine) {
+      if (isStartOfLine && trimmedPrefix.length > 0) {
         let command = null;
         let arg = null;
         let prefixLen = 0;
@@ -93,16 +96,20 @@
         if (command) {
           debugLog('Applying block format', { command, arg });
           e.preventDefault();
+          
+          // Use Range to delete the prefix securely
           const delRange = document.createRange();
-          delRange.setStart(container, idx - prefixLen);
+          const prefixStart = idx - prefixLen;
+          delRange.setStart(container, prefixStart >= 0 ? prefixStart : 0);
           delRange.setEnd(container, idx);
           delRange.deleteContents();
+          
           document.execCommand(command, false, arg);
           return;
         }
       }
 
-      // Inline formatting (only on Space)
+      // Inline formatting
       const formats = [
         { reg: /(\*\*|__)(.+?)\1$/, cmd: 'bold' },
         { reg: /(\*|_)(.+?)\1$/, cmd: 'italic' },
@@ -121,12 +128,11 @@
     }
 
     if (e.key === 'Enter') {
-       // Horizontal Rule check: --- at the start of a line
        if (textBefore.trim() === '---') {
          e.preventDefault();
          debugLog('Applying horizontal rule');
          const delRange = document.createRange();
-         delRange.setStart(container, idx - 3);
+         delRange.setStart(container, Math.max(0, idx - 3));
          delRange.setEnd(container, idx);
          delRange.deleteContents();
          document.execCommand('insertHorizontalRule');
@@ -148,18 +154,24 @@
       const html = `<code style="background-color: #f2f2f2; padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.9em;">${content}</code>\u00A0`;
       document.execCommand('insertHTML', false, html);
     } else {
-      // For Gmail, we use insertHTML with a styled span to ensure it sticks
-      let style = '';
-      if (command === 'bold') style = 'font-weight: bold;';
-      else if (command === 'italic') style = 'font-style: italic;';
-      else if (command === 'strikeThrough') style = 'text-decoration: line-through;';
+      // For bold/italic, we use execCommand but we need to select the content first
+      document.execCommand('insertHTML', false, content);
       
-      const html = `<span style="${style}">${content}</span>\u00A0`;
-      document.execCommand('insertHTML', false, html);
-      
-      // Move selection to after the space
       const sel = window.getSelection();
+      const node = sel.anchorNode;
+      const offset = sel.anchorOffset;
+      
+      const newRange = document.createRange();
+      newRange.setStart(node, Math.max(0, offset - content.length));
+      newRange.setEnd(node, offset);
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+      
+      document.execCommand(command);
+      
       sel.collapseToEnd();
+      // Insert a non-breaking space after the formatted text to exit the style
+      document.execCommand('insertHTML', false, '\u00A0');
     }
   }
 
