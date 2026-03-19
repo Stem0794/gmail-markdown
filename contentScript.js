@@ -4,7 +4,6 @@
     autoConvert: false,
     autoFormat: true,
     gfm: true,
-    sanitize: false,
     theme: 'clean',
     shortcut: 'Ctrl+Shift+M',
     disableDefault: false
@@ -18,18 +17,6 @@
 
   function getEditable() {
     return document.querySelector(SELECTOR);
-  }
-
-  function replaceEmojis(text) {
-    if (typeof window !== 'undefined' && window.replaceEmojis) {
-      return window.replaceEmojis(text);
-    }
-    const map = (typeof window !== 'undefined' && window.EMOJI_MAP) || {};
-    return text.replace(/:([a-zA-Z0-9_+-]+):/g, (m, p1) => map[p1] || m);
-  }
-
-  function convertLinksToReadable(text) {
-    return text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 ($2)');
   }
 
   function applyTheme(theme) {
@@ -49,6 +36,12 @@
     }
   }
 
+  function deleteBackwards(count) {
+    for (let i = 0; i < count; i++) {
+      document.execCommand('delete', false, null);
+    }
+  }
+
   function applyAutoFormat(e, body) {
     if (e.key !== ' ' && e.key !== 'Enter') return;
     
@@ -58,29 +51,21 @@
     if (!body.contains(range.startContainer)) return;
     
     let container = range.startContainer;
-    let idx = range.startOffset;
+    let offset = range.startOffset;
     
+    // Ensure we are in a text node
     if (container.nodeType !== Node.TEXT_NODE) {
-      if (container.childNodes[idx - 1] && container.childNodes[idx - 1].nodeType === Node.TEXT_NODE) {
-        container = container.childNodes[idx - 1];
-        idx = container.textContent.length;
-      } else if (container.lastChild && container.lastChild.nodeType === Node.TEXT_NODE) {
-        container = container.lastChild;
-        idx = container.textContent.length;
-      } else {
-        return;
-      }
+      return;
     }
     
     const text = container.textContent;
-    const textBefore = text.slice(0, idx);
+    const textBefore = text.slice(0, offset);
     
-    debugLog('Auto-format check', { key: e.key, textBefore });
-
     if (e.key === ' ') {
       const trimmedPrefix = textBefore.trim();
-      const isStartOfLine = (textBefore.trimStart() === trimmedPrefix);
+      const isStartOfLine = (textBefore.trimStart() === textBefore);
       
+      // Block formats
       if (isStartOfLine && trimmedPrefix.length > 0) {
         let command = null;
         let arg = null;
@@ -94,22 +79,14 @@
         else if (trimmedPrefix === '>') { command = 'formatBlock'; arg = 'blockquote'; prefixLen = 1; }
 
         if (command) {
-          debugLog('Applying block format', { command, arg });
           e.preventDefault();
-          
-          // Use Range to delete the prefix securely
-          const delRange = document.createRange();
-          const prefixStart = idx - prefixLen;
-          delRange.setStart(container, prefixStart >= 0 ? prefixStart : 0);
-          delRange.setEnd(container, idx);
-          delRange.deleteContents();
-          
+          deleteBackwards(prefixLen);
           document.execCommand(command, false, arg);
           return;
         }
       }
 
-      // Inline formatting
+      // Inline formats
       const formats = [
         { reg: /(\*\*|__)(.+?)\1$/, cmd: 'bold' },
         { reg: /(\*|_)(.+?)\1$/, cmd: 'italic' },
@@ -117,61 +94,39 @@
         { reg: /`(.+?)`$/, cmd: 'code' }
       ];
 
-      for (const format of formats) {
-        const match = textBefore.match(format.reg);
+      for (const f of formats) {
+        const match = textBefore.match(f.reg);
         if (match) {
-          debugLog('Applying inline format', { cmd: format.cmd, match: match[0] });
-          applyInline(container, idx, match[0], format.cmd, e);
+          e.preventDefault();
+          const fullMatch = match[0];
+          const content = match[2] || match[1] || fullMatch.replace(/^(\*\*|__|~~|\*|_|`)|(\*\*|__|~~|\*|_|`)$/g, '');
+          
+          deleteBackwards(fullMatch.length);
+          
+          if (f.cmd === 'code') {
+            const html = `<code style="background-color: #f2f2f2; padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.9em;">${content}</code>\u00A0`;
+            document.execCommand('insertHTML', false, html);
+          } else {
+            // Insert styled span to bypass Gmail's aggressive style stripping
+            let style = '';
+            if (f.cmd === 'bold') style = 'font-weight:bold;';
+            else if (f.cmd === 'italic') style = 'font-style:italic;';
+            else if (f.cmd === 'strikeThrough') style = 'text-decoration:line-through;';
+            
+            const html = `<span style="${style}">${content}</span>\u00A0`;
+            document.execCommand('insertHTML', false, html);
+          }
           return;
         }
       }
     }
 
     if (e.key === 'Enter') {
-       if (textBefore.trim() === '---') {
-         e.preventDefault();
-         debugLog('Applying horizontal rule');
-         const delRange = document.createRange();
-         delRange.setStart(container, Math.max(0, idx - 3));
-         delRange.setEnd(container, idx);
-         delRange.deleteContents();
-         document.execCommand('insertHorizontalRule');
-       }
-    }
-  }
-
-  function applyInline(container, idx, match, command, e) {
-    e.preventDefault();
-    const startIdx = idx - match.length;
-    const content = match.replace(/^(\*\*|__|~~|\*|_|`)|(\*\*|__|~~|\*|_|`)$/g, '');
-    
-    const range = document.createRange();
-    range.setStart(container, startIdx);
-    range.setEnd(container, idx);
-    range.deleteContents();
-    
-    if (command === 'code') {
-      const html = `<code style="background-color: #f2f2f2; padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.9em;">${content}</code>\u00A0`;
-      document.execCommand('insertHTML', false, html);
-    } else {
-      // For bold/italic, we use execCommand but we need to select the content first
-      document.execCommand('insertHTML', false, content);
-      
-      const sel = window.getSelection();
-      const node = sel.anchorNode;
-      const offset = sel.anchorOffset;
-      
-      const newRange = document.createRange();
-      newRange.setStart(node, Math.max(0, offset - content.length));
-      newRange.setEnd(node, offset);
-      sel.removeAllRanges();
-      sel.addRange(newRange);
-      
-      document.execCommand(command);
-      
-      sel.collapseToEnd();
-      // Insert a non-breaking space after the formatted text to exit the style
-      document.execCommand('insertHTML', false, '\u00A0');
+      if (textBefore.trim() === '---' && textBefore.trimStart() === textBefore) {
+        e.preventDefault();
+        deleteBackwards(3);
+        document.execCommand('insertHorizontalRule');
+      }
     }
   }
 
@@ -188,39 +143,24 @@
         const sel = window.getSelection();
         if (!sel.rangeCount) return;
         const range = sel.getRangeAt(0);
-        if (!body.contains(range.startContainer)) return;
         let container = range.startContainer;
-        let idx = range.startOffset;
+        let offset = range.startOffset;
+        
         if (container.nodeType !== Node.TEXT_NODE) {
-          if (container.lastChild && container.lastChild.nodeType === Node.TEXT_NODE) {
-            container = container.lastChild;
-            idx = container.textContent.length;
+          if (container.childNodes[offset - 1] && container.childNodes[offset - 1].nodeType === Node.TEXT_NODE) {
+            container = container.childNodes[offset - 1];
+            offset = container.textContent.length;
           } else {
             return;
           }
         }
+        
         const text = container.textContent;
-        if (text.slice(idx - 5, idx) === '/note') {
-          container.textContent = text.slice(0, idx - 5);
-          sel.collapse(container, idx - 5);
-          const html =
-            '<div class="md-callout" contenteditable="true" ' +
-            'style="background:#f2f2f2;padding:8px;border-radius:4px;">' +
-            'Important info</div>';
-          if (document.queryCommandSupported && document.queryCommandSupported('insertHTML')) {
-            document.execCommand('insertHTML', false, html);
-          } else {
-            const temp = document.createElement('div');
-            temp.innerHTML = html;
-            const node = temp.firstChild;
-            const r = sel.getRangeAt(0);
-            r.insertNode(node);
-            r.setStart(node, 0);
-            r.collapse(true);
-            sel.removeAllRanges();
-            sel.addRange(r);
-          }
+        if (text.slice(offset - 5, offset) === '/note') {
           e.preventDefault();
+          deleteBackwards(5);
+          const html = '<div class="md-callout" style="background:#f2f2f2;padding:8px;border-radius:4px;margin:8px 0;">Important info</div>';
+          document.execCommand('insertHTML', false, html);
         }
       });
     }
@@ -289,12 +229,7 @@
     const script = document.createElement('script');
     script.src = chrome.runtime.getURL('marked.min.js');
     script.onload = cb;
-    script.onerror = () => console.warn('[gmail-md] Failed to load marked library');
     document.documentElement.appendChild(script);
-  }
-
-  function getMarkedOpts(opts) {
-    return { gfm: opts.gfm };
   }
 
   function convertMarkdown(opts, markdownText) {
@@ -302,34 +237,21 @@
       applyTheme(opts.theme);
       const emailBody = getEditable();
       if (!emailBody || typeof marked?.parse !== 'function') return;
+      
       const selection = window.getSelection();
       const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
-      const markedOpts = getMarkedOpts(opts);
 
       if (markdownText !== undefined) {
-        const converted = convertLinksToReadable(markdownText);
-        const html = marked.parse(replaceEmojis(converted), markedOpts);
-        if (document.queryCommandSupported && document.queryCommandSupported('insertHTML')) {
-          document.execCommand('insertHTML', false, html);
-        } else if (range) {
-          const temp = document.createElement('div');
-          temp.innerHTML = html;
-          range.deleteContents();
-          range.insertNode(temp);
-        }
-        emailBody.dispatchEvent(new Event('input', { bubbles: true }));
+        const html = marked.parse(markdownText, { gfm: opts.gfm });
+        document.execCommand('insertHTML', false, html);
         return;
       }
 
       if (range && emailBody.contains(range.commonAncestorContainer) && selection.toString().trim()) {
-        const tempContainer = document.createElement('div');
-        const converted = convertLinksToReadable(selection.toString());
-        tempContainer.innerHTML = marked.parse(replaceEmojis(converted), markedOpts);
-        range.deleteContents();
-        range.insertNode(tempContainer);
+        const html = marked.parse(selection.toString(), { gfm: opts.gfm });
+        document.execCommand('insertHTML', false, html);
       } else {
-        const converted = convertLinksToReadable(emailBody.innerText);
-        const html = marked.parse(replaceEmojis(converted), markedOpts);
+        const html = marked.parse(emailBody.innerText, { gfm: opts.gfm });
         emailBody.innerHTML = html;
       }
       emailBody.dispatchEvent(new Event('input', { bubbles: true }));
@@ -340,24 +262,15 @@
     chrome.storage.sync.get(DEFAULTS, (opts) => {
       applyTheme(opts.theme);
       observeShortcuts(opts);
-      if (opts.convertOnPaste) {
-        observePaste((text) => convertMarkdown(opts, text));
-      }
-      if (opts.autoConvert) {
-        observeSendButton(() => convertMarkdown(opts));
-      }
-      if (opts.shortcut) {
-        document.addEventListener('keydown', (e) => {
-          if (matchesShortcut(e, opts.shortcut)) {
-            e.preventDefault();
-            convertMarkdown(opts);
-          }
-        });
-      }
+      if (opts.convertOnPaste) observePaste((text) => convertMarkdown(opts, text));
+      if (opts.autoConvert) observeSendButton(() => convertMarkdown(opts));
+      
+      document.addEventListener('keydown', (e) => {
+        if (opts.shortcut && matchesShortcut(e, opts.shortcut)) {
+          e.preventDefault();
+          convertMarkdown(opts);
+        }
+      });
     });
-  }
-
-  if (typeof module !== 'undefined') {
-    module.exports = { convertLinksToReadable, matchesShortcut, applyTheme, observeShortcuts };
   }
 })();
