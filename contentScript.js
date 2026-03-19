@@ -12,6 +12,7 @@
   const SELECTOR = 'div[aria-label="Message Body"][contenteditable="true"]';
 
   function debugLog(...args) {
+    // Only log if GM_DEBUG is enabled
     if (window.GM_DEBUG) console.log('[gmail-md]', ...args);
   }
 
@@ -53,7 +54,6 @@
     let container = range.startContainer;
     let offset = range.startOffset;
     
-    // Ensure we are in a text node
     if (container.nodeType !== Node.TEXT_NODE) {
       return;
     }
@@ -65,7 +65,6 @@
       const trimmedPrefix = textBefore.trim();
       const isStartOfLine = (textBefore.trimStart() === textBefore);
       
-      // Block formats
       if (isStartOfLine && trimmedPrefix.length > 0) {
         let command = null;
         let arg = null;
@@ -86,7 +85,6 @@
         }
       }
 
-      // Inline formats
       const formats = [
         { reg: /(\*\*|__)(.+?)\1$/, cmd: 'bold' },
         { reg: /(\*|_)(.+?)\1$/, cmd: 'italic' },
@@ -107,7 +105,6 @@
             const html = `<code style="background-color: #f2f2f2; padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.9em;">${content}</code>\u00A0`;
             document.execCommand('insertHTML', false, html);
           } else {
-            // Insert styled span to bypass Gmail's aggressive style stripping
             let style = '';
             if (f.cmd === 'bold') style = 'font-weight:bold;';
             else if (f.cmd === 'italic') style = 'font-style:italic;';
@@ -122,9 +119,10 @@
     }
 
     if (e.key === 'Enter') {
-      if (textBefore.trim() === '---' && textBefore.trimStart() === textBefore) {
+      // Trigger horizontal rule on --- + Enter
+      if (textBefore.trim() === '---') {
         e.preventDefault();
-        deleteBackwards(3);
+        deleteBackwards(textBefore.length); // Delete everything before the cursor in this node
         document.execCommand('insertHorizontalRule');
       }
     }
@@ -221,41 +219,32 @@
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
-  function loadMarked(cb) {
-    if (window.marked) {
-      cb();
+  function convertMarkdown(opts, markdownText) {
+    applyTheme(opts.theme);
+    const emailBody = getEditable();
+    // 'marked' is now globally available from manifest content scripts
+    if (!emailBody || typeof marked?.parse !== 'function') {
+      console.warn('[gmail-md] Marked library not ready');
       return;
     }
-    const script = document.createElement('script');
-    script.src = chrome.runtime.getURL('marked.min.js');
-    script.onload = cb;
-    document.documentElement.appendChild(script);
-  }
+    
+    const selection = window.getSelection();
+    const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
 
-  function convertMarkdown(opts, markdownText) {
-    loadMarked(() => {
-      applyTheme(opts.theme);
-      const emailBody = getEditable();
-      if (!emailBody || typeof marked?.parse !== 'function') return;
-      
-      const selection = window.getSelection();
-      const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+    if (markdownText !== undefined) {
+      const html = marked.parse(markdownText, { gfm: opts.gfm });
+      document.execCommand('insertHTML', false, html);
+      return;
+    }
 
-      if (markdownText !== undefined) {
-        const html = marked.parse(markdownText, { gfm: opts.gfm });
-        document.execCommand('insertHTML', false, html);
-        return;
-      }
-
-      if (range && emailBody.contains(range.commonAncestorContainer) && selection.toString().trim()) {
-        const html = marked.parse(selection.toString(), { gfm: opts.gfm });
-        document.execCommand('insertHTML', false, html);
-      } else {
-        const html = marked.parse(emailBody.innerText, { gfm: opts.gfm });
-        emailBody.innerHTML = html;
-      }
-      emailBody.dispatchEvent(new Event('input', { bubbles: true }));
-    });
+    if (range && emailBody.contains(range.commonAncestorContainer) && selection.toString().trim()) {
+      const html = marked.parse(selection.toString(), { gfm: opts.gfm });
+      document.execCommand('insertHTML', false, html);
+    } else {
+      const html = marked.parse(emailBody.innerText, { gfm: opts.gfm });
+      emailBody.innerHTML = html;
+    }
+    emailBody.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
   if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
