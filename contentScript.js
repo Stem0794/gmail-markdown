@@ -21,25 +21,64 @@
 
   function applyTheme(theme) {
     const id = 'md-theme-style';
-    let link = document.getElementById(id);
-    if (!link) {
-      link = document.createElement('link');
-      link.id = id;
-      link.rel = 'stylesheet';
-      link.href = chrome.runtime.getURL('themes.css');
-      document.documentElement.appendChild(link);
+    let style = document.getElementById(id);
+    if (!style) {
+      style = document.createElement('style');
+      style.id = id;
+      document.documentElement.appendChild(style);
     }
-    const body = getEditable();
-    if (body) {
-      body.classList.remove('md-theme-clean', 'md-theme-notion', 'md-theme-email');
-      body.classList.add('md-theme-' + theme);
-    }
+    const sel = 'div[aria-label="Message Body"][contenteditable="true"]';
+    const themes = {
+      clean: `
+        ${sel} h1 { font-size: 1.4em !important; font-weight: bold !important; margin: 0.6em 0 !important; }
+        ${sel} h2 { font-size: 1.2em !important; font-weight: bold !important; margin: 0.5em 0 !important; }
+        ${sel} h3 { font-size: 1.1em !important; font-weight: bold !important; margin: 0.4em 0 !important; }
+        ${sel} blockquote { border-left: 4px solid #ccc !important; padding-left: 10px !important; color: #555 !important; margin: 0.5em 0 !important; background: none !important; }
+      `,
+      notion: `
+        ${sel} h1 { font-size: 1.5em !important; font-weight: bold !important; margin: 1em 0 0.4em !important; }
+        ${sel} h2 { font-size: 1.25em !important; font-weight: bold !important; margin: 0.9em 0 0.3em !important; }
+        ${sel} h3 { font-size: 1.1em !important; font-weight: bold !important; margin: 0.8em 0 0.3em !important; }
+        ${sel} blockquote { border-left: 3px solid #9b9b9b !important; padding-left: 12px !important; color: #333 !important; background: #fafafa !important; margin: 0.5em 0 !important; }
+      `,
+      email: `
+        ${sel} h1 { font-size: 1em !important; font-weight: bold !important; margin: 0.8em 0 !important; }
+        ${sel} h2 { font-size: 1em !important; font-weight: bold !important; margin: 0.8em 0 !important; }
+        ${sel} h3 { font-size: 1em !important; font-weight: bold !important; margin: 0.8em 0 !important; }
+        ${sel} blockquote { border-left: 4px solid #ccc !important; padding-left: 8px !important; color: #000 !important; background: none !important; margin: 0.8em 0 !important; }
+      `
+    };
+    style.textContent = themes[theme] || themes.clean;
   }
 
   function deleteBackwards(count) {
     for (let i = 0; i < count; i++) {
       document.execCommand('delete', false, null);
     }
+  }
+
+  function isCursorAtBlockStart(range, block) {
+    try {
+      const testRange = document.createRange();
+      testRange.setStart(block, 0);
+      testRange.setEnd(range.startContainer, range.startOffset);
+      return testRange.toString().length === 0;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function replaceBlockWithDiv(block) {
+    const div = document.createElement('div');
+    while (block.firstChild) div.appendChild(block.firstChild);
+    if (!div.hasChildNodes()) div.innerHTML = '<br>';
+    block.parentNode.replaceChild(div, block);
+    const newRange = document.createRange();
+    newRange.setStart(div, 0);
+    newRange.collapse(true);
+    const s = window.getSelection();
+    s.removeAllRanges();
+    s.addRange(newRange);
   }
 
   function insertLineAfterHR(body) {
@@ -75,34 +114,29 @@
         block = block.parentNode;
       }
 
-      if (!block || block === body) return;
-
-      // Check if cursor is at the very start of the block (not body)
-      let atStart = false;
-      if (node.nodeType === Node.TEXT_NODE) {
-        if (range.startOffset !== 0) return;
-        // Walk up to see if we're at the start of the block (no preceding content within block)
-        let n = node;
-        atStart = true;
-        while (n && n !== block) {
-          if (n.previousSibling) { atStart = false; break; }
-          n = n.parentNode;
+      if (!block || block === body) {
+        // Chrome sometimes reports cursor at body[0] instead of inside the first child
+        if (node === body && range.startOffset === 0) {
+          const firstChild = body.childNodes[0];
+          if (firstChild && firstChild.nodeType === Node.ELEMENT_NODE &&
+              firstChild.matches('h1, h2, h3, h4, h5, h6, blockquote')) {
+            e.preventDefault();
+            replaceBlockWithDiv(firstChild);
+          }
         }
-      } else {
-        if (range.startOffset !== 0) return;
-        atStart = true;
+        return;
       }
 
-      if (!atStart) return;
+      if (!isCursorAtBlockStart(range, block)) return;
 
       const tag = block.tagName;
 
       if (/^H[1-6]$/.test(tag)) {
         e.preventDefault();
-        document.execCommand('formatBlock', false, 'div');
+        replaceBlockWithDiv(block);
       } else if (tag === 'BLOCKQUOTE') {
         e.preventDefault();
-        document.execCommand('formatBlock', false, 'div');
+        replaceBlockWithDiv(block);
       } else if (tag === 'LI') {
         const list = block.closest('ul, ol');
         if (list) {
@@ -233,6 +267,7 @@
 
   function observeShortcuts(opts) {
     function attachListener(body) {
+      applyTheme(opts.theme);
       if (body._mdShortcutsAttached) return;
       body._mdShortcutsAttached = true;
       body.addEventListener('keydown', (e) => {
