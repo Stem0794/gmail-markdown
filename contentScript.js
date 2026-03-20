@@ -69,16 +69,60 @@
   }
 
   function replaceBlockWithDiv(block) {
+    const isPreBlock = block.tagName === 'PRE';
     const div = document.createElement('div');
+    if (isPreBlock) {
+      block.querySelectorAll('[style]').forEach(el => el.removeAttribute('style'));
+    }
     while (block.firstChild) div.appendChild(block.firstChild);
     if (!div.hasChildNodes()) div.innerHTML = '<br>';
     block.parentNode.replaceChild(div, block);
+    const s = window.getSelection();
+    if (isPreBlock) {
+      const contentRange = document.createRange();
+      contentRange.selectNodeContents(div);
+      s.removeAllRanges();
+      s.addRange(contentRange);
+      document.execCommand('removeFormat');
+    }
     const newRange = document.createRange();
     newRange.setStart(div, 0);
     newRange.collapse(true);
-    const s = window.getSelection();
     s.removeAllRanges();
     s.addRange(newRange);
+    div.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: false }));
+  }
+
+  function insertCodeBlock(body) {
+    const sel = window.getSelection();
+    if (!sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
+
+    const pre = document.createElement('pre');
+    pre.style.cssText = 'background:#f7f6f3;border-radius:3px;padding:12px 16px;font-family:SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;font-size:0.85em;white-space:pre-wrap;margin:4px 0;color:#333;';
+
+    let blockEl = range.startContainer;
+    if (blockEl.nodeType === Node.TEXT_NODE) blockEl = blockEl.parentNode;
+    while (blockEl && blockEl !== body && blockEl.parentNode !== body) {
+      blockEl = blockEl.parentNode;
+    }
+
+    if (blockEl && blockEl !== body) {
+      blockEl.parentNode.replaceChild(pre, blockEl);
+    } else {
+      body.appendChild(pre);
+    }
+
+    const emptyDiv = document.createElement('div');
+    emptyDiv.innerHTML = '<br>';
+    pre.parentNode.insertBefore(emptyDiv, pre.nextSibling);
+
+    const newRange = document.createRange();
+    newRange.setStart(pre, 0);
+    newRange.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(newRange);
+    pre.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: false }));
   }
 
   function insertLineAfterHR(body) {
@@ -110,7 +154,7 @@
 
       // Find the closest block element first
       let block = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
-      while (block && block !== body && !block.matches('h1, h2, h3, h4, h5, h6, blockquote, li')) {
+      while (block && block !== body && !block.matches('h1, h2, h3, h4, h5, h6, blockquote, li, pre')) {
         block = block.parentNode;
       }
 
@@ -119,7 +163,7 @@
         if (node === body && range.startOffset === 0) {
           const firstChild = body.childNodes[0];
           if (firstChild && firstChild.nodeType === Node.ELEMENT_NODE &&
-              firstChild.matches('h1, h2, h3, h4, h5, h6, blockquote')) {
+              firstChild.matches('h1, h2, h3, h4, h5, h6, blockquote, pre')) {
             e.preventDefault();
             replaceBlockWithDiv(firstChild);
           }
@@ -135,6 +179,9 @@
         e.preventDefault();
         replaceBlockWithDiv(block);
       } else if (tag === 'BLOCKQUOTE') {
+        e.preventDefault();
+        replaceBlockWithDiv(block);
+      } else if (tag === 'PRE') {
         e.preventDefault();
         replaceBlockWithDiv(block);
       } else if (tag === 'LI') {
@@ -181,6 +228,13 @@
         deleteBackwards(textBefore.length);
         document.execCommand('insertHorizontalRule');
         insertLineAfterHR(body);
+        return;
+      }
+
+      if (/^[\s\u200B\u200C\u200D\uFEFF]*`{3}$/.test(textBefore)) {
+        e.preventDefault();
+        deleteBackwards(textBefore.length);
+        insertCodeBlock(body);
         return;
       }
 
@@ -261,6 +315,43 @@
         deleteBackwards(textBefore.length);
         document.execCommand('insertHorizontalRule');
         insertLineAfterHR(body);
+        return;
+      }
+
+      if (/^[\s\u200B\u200C\u200D\uFEFF]*`{3}$/.test(textBefore)) {
+        e.preventDefault();
+        deleteBackwards(textBefore.length);
+        insertCodeBlock(body);
+        return;
+      }
+
+      // Exit code block when Enter is pressed on an empty line inside <pre>
+      let preEl = container.parentNode;
+      while (preEl && preEl !== body && preEl.tagName !== 'PRE') {
+        preEl = preEl.parentNode;
+      }
+      if (preEl && preEl !== body && preEl.tagName === 'PRE') {
+        const lastNl = textBefore.lastIndexOf('\n');
+        const currentLine = lastNl >= 0 ? textBefore.slice(lastNl + 1) : textBefore;
+        if (currentLine === '') {
+          e.preventDefault();
+          if (container.nodeType === Node.TEXT_NODE && container.textContent.endsWith('\n')) {
+            container.textContent = container.textContent.slice(0, -1);
+          }
+          let afterEl = preEl.nextSibling;
+          if (!afterEl) {
+            afterEl = document.createElement('div');
+            afterEl.innerHTML = '<br>';
+            preEl.parentNode.insertBefore(afterEl, preEl.nextSibling);
+          }
+          const exitRange = document.createRange();
+          exitRange.setStart(afterEl, 0);
+          exitRange.collapse(true);
+          const exitSel = window.getSelection();
+          exitSel.removeAllRanges();
+          exitSel.addRange(exitRange);
+          return;
+        }
       }
     }
   }
