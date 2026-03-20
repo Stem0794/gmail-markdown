@@ -43,16 +43,73 @@
   }
 
   function applyAutoFormat(e, body) {
-    if (e.key !== ' ' && e.key !== 'Enter') return;
-    
+    if (e.key !== ' ' && e.key !== 'Enter' && e.key !== 'Backspace') return;
+
+    // Handle Backspace: remove block formatting when at the start of a formatted block
+    if (e.key === 'Backspace') {
+      const sel = window.getSelection();
+      if (!sel.rangeCount) return;
+      const range = sel.getRangeAt(0);
+      if (!body.contains(range.startContainer)) return;
+
+      let node = range.startContainer;
+      let atStart = false;
+
+      // Check if cursor is at the very start of the block
+      if (node.nodeType === Node.TEXT_NODE) {
+        if (range.startOffset !== 0) return;
+        // Walk up to see if we're truly at the start (no preceding content)
+        let n = node;
+        while (n && n !== body) {
+          if (n.previousSibling) { return; }
+          n = n.parentNode;
+        }
+        atStart = true;
+      } else {
+        if (range.startOffset !== 0) return;
+        atStart = true;
+      }
+
+      if (!atStart) return;
+
+      // Find the closest block element
+      let block = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
+      while (block && block !== body && !block.matches('h1, h2, h3, h4, h5, h6, blockquote, li')) {
+        block = block.parentNode;
+      }
+
+      if (!block || block === body) return;
+
+      const tag = block.tagName;
+
+      if (/^H[1-6]$/.test(tag)) {
+        e.preventDefault();
+        document.execCommand('formatBlock', false, 'div');
+      } else if (tag === 'BLOCKQUOTE') {
+        e.preventDefault();
+        document.execCommand('formatBlock', false, 'div');
+      } else if (tag === 'LI') {
+        const list = block.closest('ul, ol');
+        if (list) {
+          e.preventDefault();
+          if (list.tagName === 'UL') {
+            document.execCommand('insertUnorderedList', false, null);
+          } else {
+            document.execCommand('insertOrderedList', false, null);
+          }
+        }
+      }
+      return;
+    }
+
     const sel = window.getSelection();
     if (!sel.rangeCount) return;
     const range = sel.getRangeAt(0);
     if (!body.contains(range.startContainer)) return;
-    
+
     let container = range.startContainer;
     let offset = range.startOffset;
-    
+
     if (container.nodeType !== Node.TEXT_NODE) {
       if (container.childNodes[offset - 1] && container.childNodes[offset - 1].nodeType === Node.TEXT_NODE) {
         container = container.childNodes[offset - 1];
@@ -61,14 +118,22 @@
         return;
       }
     }
-    
+
     const text = container.textContent;
     const textBefore = text.slice(0, offset);
-    
+
     if (e.key === ' ') {
       const trimmedPrefix = textBefore.trim();
       const isStartOfLine = (textBefore.trimStart() === textBefore);
-      
+
+      // Handle --- + space as horizontal rule
+      if (trimmedPrefix === '---') {
+        e.preventDefault();
+        deleteBackwards(textBefore.length);
+        document.execCommand('insertHorizontalRule');
+        return;
+      }
+
       if (isStartOfLine && trimmedPrefix.length > 0) {
         let command = null;
         let arg = null;
@@ -85,6 +150,24 @@
           e.preventDefault();
           deleteBackwards(prefixLen);
           document.execCommand(command, false, arg);
+          // Add an empty line after the formatted block
+          if (command === 'formatBlock') {
+            // Move cursor to end of current content, then insert a paragraph after
+            const currentSel = window.getSelection();
+            if (currentSel.rangeCount) {
+              const currentRange = currentSel.getRangeAt(0);
+              let blockEl = currentRange.startContainer;
+              if (blockEl.nodeType === Node.TEXT_NODE) blockEl = blockEl.parentNode;
+              while (blockEl && blockEl !== body && !blockEl.matches('h1, h2, h3, h4, h5, h6, blockquote')) {
+                blockEl = blockEl.parentNode;
+              }
+              if (blockEl && blockEl !== body) {
+                const emptyDiv = document.createElement('div');
+                emptyDiv.innerHTML = '<br>';
+                blockEl.parentNode.insertBefore(emptyDiv, blockEl.nextSibling);
+              }
+            }
+          }
           return;
         }
       }
