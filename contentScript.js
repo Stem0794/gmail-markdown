@@ -42,6 +42,21 @@
     }
   }
 
+  function insertLineAfterHR(body) {
+    const hrs = body.querySelectorAll('hr');
+    if (!hrs.length) return;
+    const hr = hrs[hrs.length - 1];
+    const emptyDiv = document.createElement('div');
+    emptyDiv.innerHTML = '<br>';
+    hr.parentNode.insertBefore(emptyDiv, hr.nextSibling);
+    const newRange = document.createRange();
+    newRange.setStart(emptyDiv, 0);
+    newRange.collapse(true);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(newRange);
+  }
+
   function applyAutoFormat(e, body) {
     if (e.key !== ' ' && e.key !== 'Enter' && e.key !== 'Backspace') return;
 
@@ -53,32 +68,32 @@
       if (!body.contains(range.startContainer)) return;
 
       let node = range.startContainer;
-      let atStart = false;
 
-      // Check if cursor is at the very start of the block
-      if (node.nodeType === Node.TEXT_NODE) {
-        if (range.startOffset !== 0) return;
-        // Walk up to see if we're truly at the start (no preceding content)
-        let n = node;
-        while (n && n !== body) {
-          if (n.previousSibling) { return; }
-          n = n.parentNode;
-        }
-        atStart = true;
-      } else {
-        if (range.startOffset !== 0) return;
-        atStart = true;
-      }
-
-      if (!atStart) return;
-
-      // Find the closest block element
+      // Find the closest block element first
       let block = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
       while (block && block !== body && !block.matches('h1, h2, h3, h4, h5, h6, blockquote, li')) {
         block = block.parentNode;
       }
 
       if (!block || block === body) return;
+
+      // Check if cursor is at the very start of the block (not body)
+      let atStart = false;
+      if (node.nodeType === Node.TEXT_NODE) {
+        if (range.startOffset !== 0) return;
+        // Walk up to see if we're at the start of the block (no preceding content within block)
+        let n = node;
+        atStart = true;
+        while (n && n !== block) {
+          if (n.previousSibling) { atStart = false; break; }
+          n = n.parentNode;
+        }
+      } else {
+        if (range.startOffset !== 0) return;
+        atStart = true;
+      }
+
+      if (!atStart) return;
 
       const tag = block.tagName;
 
@@ -131,6 +146,7 @@
         e.preventDefault();
         deleteBackwards(textBefore.length);
         document.execCommand('insertHorizontalRule');
+        insertLineAfterHR(body);
         return;
       }
 
@@ -210,6 +226,7 @@
         e.preventDefault();
         deleteBackwards(textBefore.length);
         document.execCommand('insertHorizontalRule');
+        insertLineAfterHR(body);
       }
     }
   }
