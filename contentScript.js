@@ -415,25 +415,16 @@
   }
 
   function observePaste(callback) {
-    function attachListener(body) {
-      if (body._mdPasteAttached) return;
-      body._mdPasteAttached = true;
-      body.addEventListener('paste', (e) => {
-        const text = e.clipboardData.getData('text/plain');
-        if (text) {
-          e.stopPropagation();
-          e.preventDefault();
-          callback(text);
-        }
-      }, true);
-    }
-    const existing = getEditable();
-    if (existing) attachListener(existing);
-    const observer = new MutationObserver(() => {
-      const body = getEditable();
-      if (body) attachListener(body);
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
+    document.addEventListener('paste', (e) => {
+      const node = e.target.nodeType === Node.ELEMENT_NODE ? e.target : e.target.parentElement;
+      if (!node || !node.closest(SELECTOR)) return;
+      const text = e.clipboardData.getData('text/plain');
+      if (text) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        callback(text);
+      }
+    }, true);
   }
 
   function observeSendButton(callback) {
