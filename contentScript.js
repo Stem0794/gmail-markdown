@@ -19,6 +19,10 @@
     return document.querySelector(SELECTOR);
   }
 
+  function convertLinksToReadable(text) {
+    return text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 ($2)');
+  }
+
   function applyTheme(theme) {
     const id = 'md-theme-style';
     let style = document.getElementById(id);
@@ -449,6 +453,12 @@
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
+  function replaceEmojis(text) {
+    const emojiLib = window.replaceEmojis || (typeof replaceEmojis !== 'undefined' ? replaceEmojis : null);
+    if (typeof emojiLib === 'function') return emojiLib(text);
+    return text;
+  }
+
   function convertMarkdown(opts, markdownText) {
     applyTheme(opts.theme);
     const emailBody = getEditable();
@@ -461,17 +471,22 @@
     const selection = window.getSelection();
     const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
 
+    const process = (text) => {
+      const withEmojis = replaceEmojis(text);
+      return convertLinksToReadable(withEmojis);
+    };
+
     if (markdownText !== undefined) {
-      const html = markedLib.parse(markdownText, { gfm: opts.gfm });
+      const html = markedLib.parse(process(markdownText), { gfm: opts.gfm });
       document.execCommand('insertHTML', false, html);
       return;
     }
 
     if (range && emailBody.contains(range.commonAncestorContainer) && selection.toString().trim()) {
-      const html = markedLib.parse(selection.toString(), { gfm: opts.gfm });
+      const html = markedLib.parse(process(selection.toString()), { gfm: opts.gfm });
       document.execCommand('insertHTML', false, html);
     } else {
-      const html = markedLib.parse(emailBody.innerText, { gfm: opts.gfm });
+      const html = markedLib.parse(process(emailBody.innerText), { gfm: opts.gfm });
       emailBody.innerHTML = html;
     }
     emailBody.dispatchEvent(new Event('input', { bubbles: true }));
@@ -491,5 +506,15 @@
         }
       });
     });
+  }
+
+  if (typeof module !== 'undefined') {
+    module.exports = {
+      convertLinksToReadable,
+      matchesShortcut,
+      applyTheme,
+      convertMarkdown,
+      observeShortcuts
+    };
   }
 })();
