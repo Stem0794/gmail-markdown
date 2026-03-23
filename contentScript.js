@@ -421,6 +421,7 @@
       body.addEventListener('paste', (e) => {
         const text = e.clipboardData.getData('text/plain');
         if (text) {
+          e.stopPropagation();
           e.preventDefault();
           callback(text);
         }
