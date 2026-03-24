@@ -305,6 +305,11 @@
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
+  // Replace <p> tags with <div> tags to match Gmail's native line spacing
+  function gmailifyHtml(html) {
+    return html.replace(/<p>/g, '<div>').replace(/<\/p>/g, '</div>');
+  }
+
   function convertMarkdown(opts, markdownText) {
     applyTheme(opts.theme);
     const emailBody = getEditable();
@@ -313,21 +318,21 @@
       console.warn('[gmail-md] Marked library not ready');
       return;
     }
-    
+
     const selection = window.getSelection();
     const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
 
     if (markdownText !== undefined) {
-      const html = markedLib.parse(markdownText, { gfm: opts.gfm });
+      const html = gmailifyHtml(markedLib.parse(markdownText, { gfm: opts.gfm }));
       document.execCommand('insertHTML', false, html);
       return;
     }
 
     if (range && emailBody.contains(range.commonAncestorContainer) && selection.toString().trim()) {
-      const html = markedLib.parse(selection.toString(), { gfm: opts.gfm });
+      const html = gmailifyHtml(markedLib.parse(selection.toString(), { gfm: opts.gfm }));
       document.execCommand('insertHTML', false, html);
     } else {
-      const html = markedLib.parse(emailBody.innerText, { gfm: opts.gfm });
+      const html = gmailifyHtml(markedLib.parse(emailBody.innerText, { gfm: opts.gfm }));
       emailBody.innerHTML = html;
     }
     emailBody.dispatchEvent(new Event('input', { bubbles: true }));
