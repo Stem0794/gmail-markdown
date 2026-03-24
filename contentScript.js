@@ -32,6 +32,9 @@
       document.documentElement.appendChild(style);
     }
     const sel = 'div[aria-label="Message Body"][contenteditable="true"]';
+    const base = `
+        ${sel} > div, ${sel} > p { margin: 0 !important; padding: 0 !important; }
+    `;
     const themes = {
       clean: `
         ${sel} h1 { font-size: 1.4em !important; font-weight: bold !important; margin: 0.6em 0 !important; }
@@ -52,7 +55,7 @@
         ${sel} blockquote { border-left: 4px solid #ccc !important; padding-left: 8px !important; color: #000 !important; background: none !important; margin: 0.8em 0 !important; }
       `
     };
-    style.textContent = themes[theme] || themes.clean;
+    style.textContent = base + (themes[theme] || themes.clean);
   }
 
   function deleteBackwards(count) {
