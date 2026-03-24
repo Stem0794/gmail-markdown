@@ -432,9 +432,13 @@
         if (convertOnPaste) {
           callback(text);
         } else {
-          // Always insert as plain text to avoid <p>/<div> spacing from clipboard HTML
+          // Insert as plain text wrapped in <div> elements to match Gmail's native structure.
+          // Using <br> instead would corrupt Gmail's contenteditable state, causing it to
+          // switch from <div> to <p> elements for subsequent lines (which have margin spacing).
           const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-          document.execCommand('insertHTML', false, escaped.replace(/\n/g, '<br>'));
+          const lines = escaped.split('\n');
+          const html = lines.map(line => `<div>${line || '<br>'}</div>`).join('');
+          document.execCommand('insertHTML', false, html);
         }
       }, true);
     }
@@ -470,7 +474,7 @@
   // so spacing matches Gmail's native contenteditable behavior
   function gmailifyHtml(html) {
     return html
-      .replace(/<p>([\s\S]*?)<\/p>/g, '$1<br>')
+      .replace(/<p>([\s\S]*?)<\/p>/g, '<div>$1</div>')
       .replace(/(<br>)+$/, ''); // strip trailing <br>
   }
 
