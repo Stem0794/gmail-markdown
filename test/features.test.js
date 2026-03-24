@@ -26,11 +26,12 @@ describe('Extension features', function() {
     assert.isFalse(matchesShortcut(e, 'Ctrl+M'));
   });
 
-  it('applies theme classes to the email body', function() {
+  it('applies theme styles to the document', function() {
     const script = loadScript();
-    const body = document.querySelector('div[aria-label="Message Body"]');
     script.applyTheme('notion');
-    assert.isTrue(body.classList.contains('md-theme-notion'));
+    const style = document.getElementById('md-theme-style');
+    assert.exists(style);
+    assert.include(style.textContent, 'background: #fafafa !important;');
   });
 
 });

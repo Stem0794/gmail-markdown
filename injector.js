@@ -12,6 +12,10 @@
     return text;
   }
 
+  function convertLinksToReadable(text) {
+    return text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 ($2)');
+  }
+
   var interval = setInterval(function () {
     var emailBody = document.querySelector(SELECTOR);
 
@@ -23,11 +27,16 @@
         var selection = window.getSelection();
         var range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
 
+        const process = (text) => {
+          const withEmojis = replaceEmojis(text);
+          return convertLinksToReadable(withEmojis);
+        };
+
         if (range && emailBody.contains(range.commonAncestorContainer)) {
           var selectedText = selection.toString();
           if (selectedText.trim()) {
             var tempContainer = document.createElement('div');
-            tempContainer.innerHTML = marked.parse(replaceEmojis(selectedText), markedOpts);
+            tempContainer.innerHTML = marked.parse(process(selectedText), markedOpts);
             range.deleteContents();
             while (tempContainer.firstChild) {
               range.insertNode(tempContainer.firstChild);
@@ -36,7 +45,7 @@
           }
         } else {
           var markdown = emailBody.innerText;
-          var html = marked.parse(replaceEmojis(markdown), markedOpts);
+          var html = marked.parse(process(markdown), markedOpts);
           emailBody.innerHTML = html;
         }
 
@@ -50,4 +59,11 @@
       }
     }
   }, 300);
+  
+  if (typeof module !== 'undefined') {
+    module.exports = {
+      replaceEmojis,
+      convertLinksToReadable,
+    };
+  }
 })();

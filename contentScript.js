@@ -19,27 +19,129 @@
     return document.querySelector(SELECTOR);
   }
 
+  function convertLinksToReadable(text) {
+    return text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 ($2)');
+  }
+
   function applyTheme(theme) {
     const id = 'md-theme-style';
-    let link = document.getElementById(id);
-    if (!link) {
-      link = document.createElement('link');
-      link.id = id;
-      link.rel = 'stylesheet';
-      link.href = chrome.runtime.getURL('themes.css');
-      document.documentElement.appendChild(link);
+    let style = document.getElementById(id);
+    if (!style) {
+      style = document.createElement('style');
+      style.id = id;
+      document.documentElement.appendChild(style);
     }
-    const body = getEditable();
-    if (body) {
-      body.classList.remove('md-theme-clean', 'md-theme-notion', 'md-theme-email');
-      body.classList.add('md-theme-' + theme);
-    }
+    const sel = 'div[aria-label="Message Body"][contenteditable="true"]';
+    const themes = {
+      clean: `
+        ${sel} h1 { font-size: 1.4em !important; font-weight: bold !important; margin: 0.6em 0 !important; }
+        ${sel} h2 { font-size: 1.2em !important; font-weight: bold !important; margin: 0.5em 0 !important; }
+        ${sel} h3 { font-size: 1.1em !important; font-weight: bold !important; margin: 0.4em 0 !important; }
+        ${sel} blockquote { border-left: 4px solid #ccc !important; padding-left: 10px !important; color: #555 !important; margin: 0.5em 0 !important; background: none !important; }
+      `,
+      notion: `
+        ${sel} h1 { font-size: 1.5em !important; font-weight: bold !important; margin: 1em 0 0.4em !important; }
+        ${sel} h2 { font-size: 1.25em !important; font-weight: bold !important; margin: 0.9em 0 0.3em !important; }
+        ${sel} h3 { font-size: 1.1em !important; font-weight: bold !important; margin: 0.8em 0 0.3em !important; }
+        ${sel} blockquote { border-left: 3px solid #9b9b9b !important; padding-left: 12px !important; color: #333 !important; background: #fafafa !important; margin: 0.5em 0 !important; }
+      `,
+      email: `
+        ${sel} h1 { font-size: 1em !important; font-weight: bold !important; margin: 0.8em 0 !important; }
+        ${sel} h2 { font-size: 1em !important; font-weight: bold !important; margin: 0.8em 0 !important; }
+        ${sel} h3 { font-size: 1em !important; font-weight: bold !important; margin: 0.8em 0 !important; }
+        ${sel} blockquote { border-left: 4px solid #ccc !important; padding-left: 8px !important; color: #000 !important; background: none !important; margin: 0.8em 0 !important; }
+      `
+    };
+    style.textContent = themes[theme] || themes.clean;
   }
 
   function deleteBackwards(count) {
     for (let i = 0; i < count; i++) {
       document.execCommand('delete', false, null);
     }
+  }
+
+  function isCursorAtBlockStart(range, block) {
+    try {
+      const testRange = document.createRange();
+      testRange.setStart(block, 0);
+      testRange.setEnd(range.startContainer, range.startOffset);
+      return testRange.toString().length === 0;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function replaceBlockWithDiv(block) {
+    const isPreBlock = block.tagName === 'PRE';
+    const div = document.createElement('div');
+    if (isPreBlock) {
+      block.querySelectorAll('[style]').forEach(el => el.removeAttribute('style'));
+    }
+    while (block.firstChild) div.appendChild(block.firstChild);
+    if (!div.hasChildNodes()) div.innerHTML = '<br>';
+    block.parentNode.replaceChild(div, block);
+    const s = window.getSelection();
+    if (isPreBlock) {
+      const contentRange = document.createRange();
+      contentRange.selectNodeContents(div);
+      s.removeAllRanges();
+      s.addRange(contentRange);
+      document.execCommand('removeFormat');
+    }
+    const newRange = document.createRange();
+    newRange.setStart(div, 0);
+    newRange.collapse(true);
+    s.removeAllRanges();
+    s.addRange(newRange);
+    div.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: false }));
+  }
+
+  function insertCodeBlock(body) {
+    const sel = window.getSelection();
+    if (!sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
+
+    const pre = document.createElement('pre');
+    pre.style.cssText = 'background:#f7f6f3;border-radius:3px;padding:12px 16px;font-family:SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;font-size:0.85em;white-space:pre-wrap;margin:4px 0;color:#333;';
+
+    let blockEl = range.startContainer;
+    if (blockEl.nodeType === Node.TEXT_NODE) blockEl = blockEl.parentNode;
+    while (blockEl && blockEl !== body && blockEl.parentNode !== body) {
+      blockEl = blockEl.parentNode;
+    }
+
+    if (blockEl && blockEl !== body) {
+      blockEl.parentNode.replaceChild(pre, blockEl);
+    } else {
+      body.appendChild(pre);
+    }
+
+    const emptyDiv = document.createElement('div');
+    emptyDiv.innerHTML = '<br>';
+    pre.parentNode.insertBefore(emptyDiv, pre.nextSibling);
+
+    const newRange = document.createRange();
+    newRange.setStart(pre, 0);
+    newRange.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(newRange);
+    pre.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: false }));
+  }
+
+  function insertLineAfterHR(body) {
+    const hrs = body.querySelectorAll('hr');
+    if (!hrs.length) return;
+    const hr = hrs[hrs.length - 1];
+    const emptyDiv = document.createElement('div');
+    emptyDiv.innerHTML = '<br>';
+    hr.parentNode.insertBefore(emptyDiv, hr.nextSibling);
+    const newRange = document.createRange();
+    newRange.setStart(emptyDiv, 0);
+    newRange.collapse(true);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(newRange);
   }
 
   function applyAutoFormat(e, body) {
@@ -53,41 +155,39 @@
       if (!body.contains(range.startContainer)) return;
 
       let node = range.startContainer;
-      let atStart = false;
 
-      // Check if cursor is at the very start of the block
-      if (node.nodeType === Node.TEXT_NODE) {
-        if (range.startOffset !== 0) return;
-        // Walk up to see if we're truly at the start (no preceding content)
-        let n = node;
-        while (n && n !== body) {
-          if (n.previousSibling) { return; }
-          n = n.parentNode;
-        }
-        atStart = true;
-      } else {
-        if (range.startOffset !== 0) return;
-        atStart = true;
-      }
-
-      if (!atStart) return;
-
-      // Find the closest block element
+      // Find the closest block element first
       let block = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
-      while (block && block !== body && !block.matches('h1, h2, h3, h4, h5, h6, blockquote, li')) {
+      while (block && block !== body && !block.matches('h1, h2, h3, h4, h5, h6, blockquote, li, pre')) {
         block = block.parentNode;
       }
 
-      if (!block || block === body) return;
+      if (!block || block === body) {
+        // Chrome sometimes reports cursor at body[0] instead of inside the first child
+        if (node === body && range.startOffset === 0) {
+          const firstChild = body.childNodes[0];
+          if (firstChild && firstChild.nodeType === Node.ELEMENT_NODE &&
+              firstChild.matches('h1, h2, h3, h4, h5, h6, blockquote, pre')) {
+            e.preventDefault();
+            replaceBlockWithDiv(firstChild);
+          }
+        }
+        return;
+      }
+
+      if (!isCursorAtBlockStart(range, block)) return;
 
       const tag = block.tagName;
 
       if (/^H[1-6]$/.test(tag)) {
         e.preventDefault();
-        document.execCommand('formatBlock', false, 'div');
+        replaceBlockWithDiv(block);
       } else if (tag === 'BLOCKQUOTE') {
         e.preventDefault();
-        document.execCommand('formatBlock', false, 'div');
+        replaceBlockWithDiv(block);
+      } else if (tag === 'PRE') {
+        e.preventDefault();
+        replaceBlockWithDiv(block);
       } else if (tag === 'LI') {
         const list = block.closest('ul, ol');
         if (list) {
@@ -131,6 +231,14 @@
         e.preventDefault();
         deleteBackwards(textBefore.length);
         document.execCommand('insertHorizontalRule');
+        insertLineAfterHR(body);
+        return;
+      }
+
+      if (/^[\s\u200B\u200C\u200D\uFEFF]*`{3}$/.test(textBefore)) {
+        e.preventDefault();
+        deleteBackwards(textBefore.length);
+        insertCodeBlock(body);
         return;
       }
 
@@ -210,12 +318,51 @@
         e.preventDefault();
         deleteBackwards(textBefore.length);
         document.execCommand('insertHorizontalRule');
+        insertLineAfterHR(body);
+        return;
+      }
+
+      if (/^[\s\u200B\u200C\u200D\uFEFF]*`{3}$/.test(textBefore)) {
+        e.preventDefault();
+        deleteBackwards(textBefore.length);
+        insertCodeBlock(body);
+        return;
+      }
+
+      // Exit code block when Enter is pressed on an empty line inside <pre>
+      let preEl = container.parentNode;
+      while (preEl && preEl !== body && preEl.tagName !== 'PRE') {
+        preEl = preEl.parentNode;
+      }
+      if (preEl && preEl !== body && preEl.tagName === 'PRE') {
+        const lastNl = textBefore.lastIndexOf('\n');
+        const currentLine = lastNl >= 0 ? textBefore.slice(lastNl + 1) : textBefore;
+        if (currentLine === '') {
+          e.preventDefault();
+          if (container.nodeType === Node.TEXT_NODE && container.textContent.endsWith('\n')) {
+            container.textContent = container.textContent.slice(0, -1);
+          }
+          let afterEl = preEl.nextSibling;
+          if (!afterEl) {
+            afterEl = document.createElement('div');
+            afterEl.innerHTML = '<br>';
+            preEl.parentNode.insertBefore(afterEl, preEl.nextSibling);
+          }
+          const exitRange = document.createRange();
+          exitRange.setStart(afterEl, 0);
+          exitRange.collapse(true);
+          const exitSel = window.getSelection();
+          exitSel.removeAllRanges();
+          exitSel.addRange(exitRange);
+          return;
+        }
       }
     }
   }
 
   function observeShortcuts(opts) {
     function attachListener(body) {
+      applyTheme(opts.theme);
       if (body._mdShortcutsAttached) return;
       body._mdShortcutsAttached = true;
       body.addEventListener('keydown', (e) => {
@@ -310,6 +457,12 @@
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
+  function replaceEmojis(text) {
+    const emojiLib = window.replaceEmojis || (typeof replaceEmojis !== 'undefined' ? replaceEmojis : null);
+    if (typeof emojiLib === 'function') return emojiLib(text);
+    return text;
+  }
+
   // Convert Marked's block-level paragraph tags to <br> line breaks
   // so spacing matches Gmail's native contenteditable behavior
   function gmailifyHtml(html) {
@@ -330,17 +483,22 @@
     const selection = window.getSelection();
     const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
 
+    const process = (text) => {
+      const withEmojis = replaceEmojis(text);
+      return convertLinksToReadable(withEmojis);
+    };
+
     if (markdownText !== undefined) {
-      const html = gmailifyHtml(markedLib.parse(markdownText, { gfm: opts.gfm }));
+      const html = gmailifyHtml(markedLib.parse(process(markdownText), { gfm: opts.gfm }));
       document.execCommand('insertHTML', false, html);
       return;
     }
 
     if (range && emailBody.contains(range.commonAncestorContainer) && selection.toString().trim()) {
-      const html = gmailifyHtml(markedLib.parse(selection.toString(), { gfm: opts.gfm }));
+      const html = gmailifyHtml(markedLib.parse(process(selection.toString()), { gfm: opts.gfm }));
       document.execCommand('insertHTML', false, html);
     } else {
-      const html = gmailifyHtml(markedLib.parse(emailBody.innerText, { gfm: opts.gfm }));
+      const html = gmailifyHtml(markedLib.parse(process(emailBody.innerText), { gfm: opts.gfm }));
       emailBody.innerHTML = html;
     }
     emailBody.dispatchEvent(new Event('input', { bubbles: true }));
@@ -360,5 +518,15 @@
         }
       });
     });
+  }
+
+  if (typeof module !== 'undefined') {
+    module.exports = {
+      convertLinksToReadable,
+      matchesShortcut,
+      applyTheme,
+      convertMarkdown,
+      observeShortcuts
+    };
   }
 })();
