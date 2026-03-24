@@ -1,12 +1,9 @@
-.md-theme-clean h1 { font-size: 1.4em; margin: 0.6em 0; }
-.md-theme-clean h2 { font-size: 1.2em; margin: 0.5em 0; }
-.md-theme-clean blockquote { border-left: 4px solid #ccc; padding-left: 8px; color: #555; }
+.md-theme-default h1 { font-size: 1.4em; font-weight: bold; margin: 0.6em 0; }
+.md-theme-default h2 { font-size: 1.2em; font-weight: bold; margin: 0.5em 0; }
+.md-theme-default h3 { font-size: 1.1em; font-weight: bold; margin: 0.4em 0; }
+.md-theme-default blockquote { border-left: 4px solid #ccc; padding-left: 10px; color: #555; }
 
-.md-theme-notion h1 { font-size: 1.5em; margin: 1em 0 0.4em; }
-.md-theme-notion h2 { font-size: 1.25em; margin: 0.9em 0 0.3em; }
-.md-theme-notion blockquote { border-left: 3px solid #9b9b9b; padding-left: 12px; color: #333; background: #fafafa; }
-
-.md-theme-email h1,
-.md-theme-email h2 { margin: 0.8em 0; font-size: 1em; font-weight: bold; }
-.md-theme-email blockquote { margin: 0.8em 0; padding-left: 8px; border-left: 4px solid #ccc; color: #000; }
-
+.md-theme-strong h1 { font-size: 1.4em; font-weight: bold; text-transform: uppercase; margin: 0.6em 0; }
+.md-theme-strong h2 { font-size: 1.2em; font-weight: bold; text-transform: uppercase; margin: 0.5em 0; }
+.md-theme-strong h3 { font-size: 1.1em; font-weight: bold; text-transform: uppercase; margin: 0.4em 0; }
+.md-theme-strong blockquote { border-left: 4px solid #ccc; padding-left: 10px; color: #555; }

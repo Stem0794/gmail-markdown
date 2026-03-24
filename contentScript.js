@@ -4,7 +4,7 @@
     autoConvert: false,
     autoFormat: true,
     gfm: true,
-    theme: 'clean',
+    theme: 'default',
     shortcut: 'Ctrl+Shift+M',
     disableDefault: false
   };
@@ -36,26 +36,20 @@
         ${sel} > div, ${sel} > p { margin: 0 !important; padding: 0 !important; }
     `;
     const themes = {
-      clean: `
+      default: `
         ${sel} h1 { font-size: 1.4em !important; font-weight: bold !important; margin: 0.6em 0 !important; }
         ${sel} h2 { font-size: 1.2em !important; font-weight: bold !important; margin: 0.5em 0 !important; }
         ${sel} h3 { font-size: 1.1em !important; font-weight: bold !important; margin: 0.4em 0 !important; }
         ${sel} blockquote { border-left: 4px solid #ccc !important; padding-left: 10px !important; color: #555 !important; margin: 0.5em 0 !important; background: none !important; }
       `,
-      notion: `
-        ${sel} h1 { font-size: 1.5em !important; font-weight: bold !important; margin: 1em 0 0.4em !important; }
-        ${sel} h2 { font-size: 1.25em !important; font-weight: bold !important; margin: 0.9em 0 0.3em !important; }
-        ${sel} h3 { font-size: 1.1em !important; font-weight: bold !important; margin: 0.8em 0 0.3em !important; }
-        ${sel} blockquote { border-left: 3px solid #9b9b9b !important; padding-left: 12px !important; color: #333 !important; background: #fafafa !important; margin: 0.5em 0 !important; }
-      `,
-      email: `
-        ${sel} h1 { font-size: 1em !important; font-weight: bold !important; margin: 0.8em 0 !important; }
-        ${sel} h2 { font-size: 1em !important; font-weight: bold !important; margin: 0.8em 0 !important; }
-        ${sel} h3 { font-size: 1em !important; font-weight: bold !important; margin: 0.8em 0 !important; }
-        ${sel} blockquote { border-left: 4px solid #ccc !important; padding-left: 8px !important; color: #000 !important; background: none !important; margin: 0.8em 0 !important; }
+      strong: `
+        ${sel} h1 { font-size: 1.4em !important; font-weight: bold !important; text-transform: uppercase !important; margin: 0.6em 0 !important; }
+        ${sel} h2 { font-size: 1.2em !important; font-weight: bold !important; text-transform: uppercase !important; margin: 0.5em 0 !important; }
+        ${sel} h3 { font-size: 1.1em !important; font-weight: bold !important; text-transform: uppercase !important; margin: 0.4em 0 !important; }
+        ${sel} blockquote { border-left: 4px solid #ccc !important; padding-left: 10px !important; color: #555 !important; margin: 0.5em 0 !important; background: none !important; }
       `
     };
-    style.textContent = base + (themes[theme] || themes.clean);
+    style.textContent = base + (themes[theme] || themes.default);
   }
 
   function deleteBackwards(count) {
