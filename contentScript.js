@@ -271,15 +271,44 @@
            e.metaKey === meta;
   }
 
-  function observePaste(callback) {
+  // Normalize clipboard HTML to Gmail-friendly format (no <p> margins)
+  function normalizePastedHtml(html) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    // Convert block-level elements to inline with <br> breaks
+    tmp.querySelectorAll('p, div').forEach(el => {
+      // Replace block element with its inner content + <br>
+      const br = document.createElement('br');
+      el.after(br);
+      el.replaceWith(...el.childNodes);
+    });
+    // Strip trailing <br>
+    while (tmp.lastChild && tmp.lastChild.nodeName === 'BR') {
+      tmp.lastChild.remove();
+    }
+    return tmp.innerHTML;
+  }
+
+  function observePaste(convertOnPaste, callback) {
     function attachListener(body) {
       if (body._mdPasteAttached) return;
       body._mdPasteAttached = true;
       body.addEventListener('paste', (e) => {
         const text = e.clipboardData.getData('text/plain');
-        if (text) {
-          e.preventDefault();
+        if (!text) return;
+        e.preventDefault();
+        if (convertOnPaste) {
           callback(text);
+        } else {
+          // Normalize clipboard HTML to avoid <p> margin spacing
+          const html = e.clipboardData.getData('text/html');
+          if (html) {
+            document.execCommand('insertHTML', false, normalizePastedHtml(html));
+          } else {
+            // Plain text: convert newlines to <br>
+            const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            document.execCommand('insertHTML', false, escaped.replace(/\n/g, '<br>'));
+          }
         }
       }, true);
     }
@@ -345,7 +374,7 @@
     chrome.storage.sync.get(DEFAULTS, (opts) => {
       applyTheme(opts.theme);
       observeShortcuts(opts);
-      if (opts.convertOnPaste) observePaste((text) => convertMarkdown(opts, text));
+      observePaste(opts.convertOnPaste, (text) => convertMarkdown(opts, text));
       if (opts.autoConvert) observeSendButton(() => convertMarkdown(opts));
       
       document.addEventListener('keydown', (e) => {
