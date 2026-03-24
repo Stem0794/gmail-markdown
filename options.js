@@ -4,7 +4,7 @@ var DEFAULTS = {
   autoFormat: true,
   gfm: true,
   sanitize: false,
-  theme: 'clean',
+  theme: 'default',
   shortcut: 'Ctrl+Shift+M',
   disableDefault: false
 };
