@@ -418,17 +418,30 @@
            e.metaKey === meta;
   }
 
-  function observePaste(callback) {
-    document.addEventListener('paste', (e) => {
-      const node = e.target.nodeType === Node.ELEMENT_NODE ? e.target : e.target.parentElement;
-      if (!node || !node.closest(SELECTOR)) return;
-      const text = e.clipboardData.getData('text/plain');
-      if (text) {
-        e.stopImmediatePropagation();
+  function observePaste(convertOnPaste, callback) {
+    function attachListener(body) {
+      if (body._mdPasteAttached) return;
+      body._mdPasteAttached = true;
+      body.addEventListener('paste', (e) => {
+        const text = e.clipboardData.getData('text/plain');
+        if (!text) return;
         e.preventDefault();
-        callback(text);
-      }
-    }, true);
+        if (convertOnPaste) {
+          callback(text);
+        } else {
+          // Always insert as plain text to avoid <p>/<div> spacing from clipboard HTML
+          const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          document.execCommand('insertHTML', false, escaped.replace(/\n/g, '<br>'));
+        }
+      }, true);
+    }
+    const existing = getEditable();
+    if (existing) attachListener(existing);
+    const observer = new MutationObserver(() => {
+      const body = getEditable();
+      if (body) attachListener(body);
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
   }
 
   function observeSendButton(callback) {
@@ -450,6 +463,14 @@
     return text;
   }
 
+  // Convert Marked's block-level paragraph tags to <br> line breaks
+  // so spacing matches Gmail's native contenteditable behavior
+  function gmailifyHtml(html) {
+    return html
+      .replace(/<p>([\s\S]*?)<\/p>/g, '$1<br>')
+      .replace(/(<br>)+$/, ''); // strip trailing <br>
+  }
+
   function convertMarkdown(opts, markdownText) {
     applyTheme(opts.theme);
     const emailBody = getEditable();
@@ -458,7 +479,7 @@
       console.warn('[gmail-md] Marked library not ready');
       return;
     }
-    
+
     const selection = window.getSelection();
     const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
 
@@ -468,16 +489,16 @@
     };
 
     if (markdownText !== undefined) {
-      const html = markedLib.parse(process(markdownText), { gfm: opts.gfm });
+      const html = gmailifyHtml(markedLib.parse(process(markdownText), { gfm: opts.gfm }));
       document.execCommand('insertHTML', false, html);
       return;
     }
 
     if (range && emailBody.contains(range.commonAncestorContainer) && selection.toString().trim()) {
-      const html = markedLib.parse(process(selection.toString()), { gfm: opts.gfm });
+      const html = gmailifyHtml(markedLib.parse(process(selection.toString()), { gfm: opts.gfm }));
       document.execCommand('insertHTML', false, html);
     } else {
-      const html = markedLib.parse(process(emailBody.innerText), { gfm: opts.gfm });
+      const html = gmailifyHtml(markedLib.parse(process(emailBody.innerText), { gfm: opts.gfm }));
       emailBody.innerHTML = html;
     }
     emailBody.dispatchEvent(new Event('input', { bubbles: true }));
@@ -487,7 +508,7 @@
     chrome.storage.sync.get(DEFAULTS, (opts) => {
       applyTheme(opts.theme);
       observeShortcuts(opts);
-      if (opts.convertOnPaste) observePaste((text) => convertMarkdown(opts, text));
+      observePaste(opts.convertOnPaste, (text) => convertMarkdown(opts, text));
       if (opts.autoConvert) observeSendButton(() => convertMarkdown(opts));
       
       document.addEventListener('keydown', (e) => {
