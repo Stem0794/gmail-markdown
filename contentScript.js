@@ -305,9 +305,12 @@
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
-  // Replace <p> tags with <div> tags to match Gmail's native line spacing
+  // Convert Marked's block-level paragraph tags to <br> line breaks
+  // so spacing matches Gmail's native contenteditable behavior
   function gmailifyHtml(html) {
-    return html.replace(/<p>/g, '<div>').replace(/<\/p>/g, '</div>');
+    return html
+      .replace(/<p>([\s\S]*?)<\/p>/g, '$1<br>')
+      .replace(/(<br>)+$/, ''); // strip trailing <br>
   }
 
   function convertMarkdown(opts, markdownText) {
