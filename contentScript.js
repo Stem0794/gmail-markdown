@@ -365,6 +365,8 @@
       applyTheme(opts.theme);
       if (body._mdShortcutsAttached) return;
       body._mdShortcutsAttached = true;
+      // Ensure Enter creates <div> (line break) not <p> (paragraph with margins)
+      try { document.execCommand('defaultParagraphSeparator', false, 'div'); } catch (_) {}
       body.addEventListener('keydown', (e) => {
         if (opts.autoFormat) {
           applyAutoFormat(e, body);
