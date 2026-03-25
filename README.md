@@ -128,3 +128,7 @@ npm test
 ## License
 
 See [LICENSE](LICENSE) for details.
+
+## Privacy Policy
+
+See [PRIVACY.md](PRIVACY.md) for details.
