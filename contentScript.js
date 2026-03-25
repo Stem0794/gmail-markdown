@@ -417,8 +417,14 @@
           // switch from <div> to <p> elements for subsequent lines (which have margin spacing).
           const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
           const lines = escaped.split('\n');
-          const html = lines.map(line => `<div>${line || '<br>'}</div>`).join('');
-          document.execCommand('insertHTML', false, html);
+          if (lines.length === 1) {
+            // Single line: insert inline to avoid block-level duplication quirks
+            document.execCommand('insertText', false, text);
+          } else {
+            // Multi-line: wrap in <div> to match Gmail's native structure
+            const html = lines.map(line => `<div>${line || '<br>'}</div>`).join('');
+            document.execCommand('insertHTML', false, html);
+          }
         }
       }, true);
     }
