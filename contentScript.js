@@ -95,35 +95,21 @@
   }
 
   function insertCodeBlock(body) {
+    const style = 'background:#f7f6f3;border-radius:3px;padding:12px 16px;font-family:SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;font-size:0.85em;white-space:pre-wrap;margin:4px 0;color:#333;';
+    const html = `<pre style="${style}"><br></pre><div><br></div>`;
+    document.execCommand('insertHTML', false, html);
+
+    // Place cursor inside the <pre> block
     const sel = window.getSelection();
-    if (!sel.rangeCount) return;
-    const range = sel.getRangeAt(0);
-
-    const pre = document.createElement('pre');
-    pre.style.cssText = 'background:#f7f6f3;border-radius:3px;padding:12px 16px;font-family:SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;font-size:0.85em;white-space:pre-wrap;margin:4px 0;color:#333;';
-
-    let blockEl = range.startContainer;
-    if (blockEl.nodeType === Node.TEXT_NODE) blockEl = blockEl.parentNode;
-    while (blockEl && blockEl !== body && blockEl.parentNode !== body) {
-      blockEl = blockEl.parentNode;
+    const pres = body.querySelectorAll('pre');
+    if (pres.length) {
+      const pre = pres[pres.length - 1];
+      const newRange = document.createRange();
+      newRange.setStart(pre, 0);
+      newRange.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(newRange);
     }
-
-    if (blockEl && blockEl !== body) {
-      blockEl.parentNode.replaceChild(pre, blockEl);
-    } else {
-      body.appendChild(pre);
-    }
-
-    const emptyDiv = document.createElement('div');
-    emptyDiv.innerHTML = '<br>';
-    pre.parentNode.insertBefore(emptyDiv, pre.nextSibling);
-
-    const newRange = document.createRange();
-    newRange.setStart(pre, 0);
-    newRange.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(newRange);
-    pre.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: false }));
   }
 
   function insertLineAfterHR(body) {
