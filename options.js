@@ -6,6 +6,7 @@ var DEFAULTS = {
   sanitize: false,
   theme: 'default',
   shortcut: 'Ctrl+Shift+M',
+  codeShortcut: 'Ctrl+E',
   disableDefault: false
 };
 
@@ -30,6 +31,15 @@ function saveOptions() {
     return;
   }
 
+  var codeShortcutInput = document.getElementById('codeShortcut').value.trim();
+  if (codeShortcutInput && !isValidShortcut(codeShortcutInput)) {
+    var status = document.getElementById('status');
+    status.textContent = 'Invalid code shortcut format. Use e.g. Ctrl+E or Cmd+E';
+    status.style.color = '#c00';
+    setTimeout(function () { status.textContent = ''; status.style.color = ''; }, 3000);
+    return;
+  }
+
   var opts = {
     convertOnPaste: document.getElementById('convertOnPaste').checked,
     autoConvert: document.getElementById('autoConvert').checked,
@@ -38,6 +48,7 @@ function saveOptions() {
     sanitize: document.getElementById('sanitize').checked,
     theme: document.getElementById('theme').value,
     shortcut: shortcutInput || DEFAULTS.shortcut,
+    codeShortcut: codeShortcutInput || DEFAULTS.codeShortcut,
     disableDefault: document.getElementById('disableDefault').checked
   };
 
@@ -66,6 +77,7 @@ function restoreOptions() {
     document.getElementById('sanitize').checked = items.sanitize;
     document.getElementById('theme').value = items.theme;
     document.getElementById('shortcut').value = items.shortcut;
+    document.getElementById('codeShortcut').value = items.codeShortcut;
     document.getElementById('disableDefault').checked = items.disableDefault;
   });
 }
