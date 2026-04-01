@@ -81,6 +81,31 @@ test('Ctrl+E wraps selected text in an inline <code> element', async ({ page }) 
   const html = await page.locator(EDITOR).innerHTML();
   expect(html).toContain('<code');
   expect(html).toContain('hello world');
+  // Browser normalises hex to rgb: #2d2d2d → rgb(45, 45, 45), #ff6b6b → rgb(255, 107, 107)
+  expect(html).toContain('rgb(45, 45, 45)');
+  expect(html).toContain('rgb(255, 107, 107)');
+});
+
+test('Ctrl+E on already-formatted code removes the formatting', async ({ page }) => {
+  await setupPage(page);
+  // Wrap first
+  await setEditorText(page, 'hello world');
+  await selectAll(page);
+  await page.keyboard.press('Control+e');
+
+  // Now select the code element and toggle off
+  await page.evaluate(() => {
+    const code = document.querySelector('[aria-label="Message Body"] code');
+    const range = document.createRange();
+    range.selectNodeContents(code);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+  });
+  await page.keyboard.press('Control+e');
+
+  const html = await page.locator(EDITOR).innerHTML();
+  expect(html).not.toContain('<code');
+  expect(html).toContain('hello world');
 });
 
 test('Ctrl+E does nothing when no text is selected', async ({ page }) => {
