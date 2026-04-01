@@ -281,7 +281,7 @@
           deleteBackwards(fullMatch.length);
           
           if (f.cmd === 'code') {
-            const html = `<code style="background-color: #f2f2f2; padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.9em;">${content}</code>\u00A0`;
+            const html = `<code style="background-color: #2d2d2d; color: #ff6b6b; padding: 2px 6px; border-radius: 4px; font-family: monospace;">${content}</code>\u00A0`;
             document.execCommand('insertHTML', false, html);
           } else {
             let style = '';
@@ -354,15 +354,30 @@
           applyAutoFormat(e, body);
         }
 
-        // Code shortcut (default Ctrl+E): wrap selected text in inline code
+        // Code shortcut (default Ctrl+E): wrap/unwrap selected text in inline code
         if (opts.codeShortcut && matchesShortcut(e, opts.codeShortcut)) {
           const sel = window.getSelection();
           if (sel && sel.rangeCount && !sel.isCollapsed && body.contains(sel.getRangeAt(0).commonAncestorContainer)) {
             e.preventDefault();
-            const selectedText = sel.toString();
-            const escaped = selectedText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            const html = `<code style="background-color: #f2f2f2; padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.9em;">${escaped}</code>`;
-            document.execCommand('insertHTML', false, html);
+            const range = sel.getRangeAt(0);
+
+            // Toggle off: if selection is inside an existing <code>, unwrap it
+            let ancestor = range.commonAncestorContainer;
+            if (ancestor.nodeType === Node.TEXT_NODE) ancestor = ancestor.parentElement;
+            let codeEl = ancestor;
+            while (codeEl && codeEl !== body) {
+              if (codeEl.tagName === 'CODE') break;
+              codeEl = codeEl.parentElement;
+            }
+            if (codeEl && codeEl.tagName === 'CODE') {
+              const text = document.createTextNode(codeEl.textContent);
+              codeEl.parentNode.replaceChild(text, codeEl);
+            } else {
+              const selectedText = sel.toString();
+              const escaped = selectedText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+              const html = `<code style="background-color: #2d2d2d; color: #ff6b6b; padding: 2px 6px; border-radius: 4px; font-family: monospace;">${escaped}</code>`;
+              document.execCommand('insertHTML', false, html);
+            }
             return;
           }
         }
