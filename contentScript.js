@@ -353,6 +353,19 @@
           applyAutoFormat(e, body);
         }
 
+        // Cmd+E (Mac) or Ctrl+E (Win/Linux): wrap selected text in inline code
+        if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key === 'e') {
+          const sel = window.getSelection();
+          if (sel && sel.rangeCount && !sel.isCollapsed && body.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+            e.preventDefault();
+            const selectedText = sel.toString();
+            const escaped = selectedText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const html = `<code style="background-color: #f2f2f2; padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.9em;">${escaped}</code>`;
+            document.execCommand('insertHTML', false, html);
+            return;
+          }
+        }
+
         if (e.key !== ' ' && e.key !== 'Enter') return;
         const sel = window.getSelection();
         if (!sel.rangeCount) return;
