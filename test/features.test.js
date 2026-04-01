@@ -28,10 +28,10 @@ describe('Extension features', function() {
 
   it('applies theme styles to the document', function() {
     const script = loadScript();
-    script.applyTheme('notion');
+    script.applyTheme('strong');
     const style = document.getElementById('md-theme-style');
     assert.exists(style);
-    assert.include(style.textContent, 'background: #fafafa !important;');
+    assert.include(style.textContent, 'text-transform: uppercase !important;');
   });
 
 });
