@@ -6,6 +6,7 @@
     gfm: true,
     theme: 'default',
     shortcut: 'Ctrl+Shift+M',
+    codeShortcut: 'Ctrl+E',
     disableDefault: false
   };
 
@@ -353,8 +354,8 @@
           applyAutoFormat(e, body);
         }
 
-        // Cmd+E (Mac) or Ctrl+E (Win/Linux): wrap selected text in inline code
-        if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key === 'e') {
+        // Code shortcut (default Ctrl+E): wrap selected text in inline code
+        if (opts.codeShortcut && matchesShortcut(e, opts.codeShortcut)) {
           const sel = window.getSelection();
           if (sel && sel.rangeCount && !sel.isCollapsed && body.contains(sel.getRangeAt(0).commonAncestorContainer)) {
             e.preventDefault();
