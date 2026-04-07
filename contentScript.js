@@ -12,6 +12,9 @@
 
   const SELECTOR = 'div[aria-label="Message Body"][contenteditable="true"]';
 
+  // Inline styles for blockquote so formatting survives email send (Gmail strips <style> tags)
+  const BLOCKQUOTE_INLINE_STYLE = 'border-left:4px solid #ccc;padding-left:10px;color:#555;margin:0.5em 0;background:none;';
+
   function debugLog(...args) {
     if (window.GM_DEBUG) console.log('[gmail-md]', ...args);
   }
@@ -254,6 +257,10 @@
                 blockEl = blockEl.parentNode;
               }
               if (blockEl && blockEl !== body) {
+                // Apply inline styles to blockquote so formatting survives email send
+                if (blockEl.tagName === 'BLOCKQUOTE') {
+                  blockEl.setAttribute('style', BLOCKQUOTE_INLINE_STYLE);
+                }
                 const emptyDiv = document.createElement('div');
                 emptyDiv.innerHTML = '<br>';
                 blockEl.parentNode.insertBefore(emptyDiv, blockEl.nextSibling);
@@ -490,6 +497,7 @@
   // so spacing matches Gmail's native contenteditable behavior
   function gmailifyHtml(html) {
     return html
+      .replace(/<blockquote>/gi, `<blockquote style="${BLOCKQUOTE_INLINE_STYLE}">`)
       .replace(/<p>([\s\S]*?)<\/p>/g, '<div>$1</div>')
       .replace(/(<br>)+$/, ''); // strip trailing <br>
   }
@@ -549,7 +557,8 @@
       matchesShortcut,
       applyTheme,
       convertMarkdown,
-      observeShortcuts
+      observeShortcuts,
+      gmailifyHtml
     };
   }
 })();
