@@ -99,7 +99,7 @@
   }
 
   function insertCodeBlock(body) {
-    const style = 'background:#f7f6f3;border-radius:3px;padding:12px 16px;font-family:SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;font-size:0.85em;white-space:pre-wrap;margin:4px 0;color:#333;';
+    const style = 'background-color:#f7f6f3;border-radius:3px;padding:12px 16px;font-family:SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;font-size:0.85em;white-space:pre-wrap;margin:4px 0;color:#333;';
     const html = `<pre style="${style}"><br></pre><div><br></div>`;
     document.execCommand('insertHTML', false, html);
 
@@ -145,7 +145,7 @@
 
       // Find the closest block element first
       let block = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
-      while (block && block !== body && !block.matches('h1, h2, h3, h4, h5, h6, blockquote, li, pre')) {
+      while (block && block !== body && !block.matches('h1, h2, h3, h4, h5, h6, blockquote, li, pre, [data-md-quote]')) {
         block = block.parentNode;
       }
 
@@ -154,7 +154,7 @@
         if (node === body && range.startOffset === 0) {
           const firstChild = body.childNodes[0];
           if (firstChild && firstChild.nodeType === Node.ELEMENT_NODE &&
-              firstChild.matches('h1, h2, h3, h4, h5, h6, blockquote, pre')) {
+              firstChild.matches('h1, h2, h3, h4, h5, h6, blockquote, pre, [data-md-quote]')) {
             e.preventDefault();
             replaceBlockWithDiv(firstChild);
           }
@@ -169,7 +169,7 @@
       if (/^H[1-6]$/.test(tag)) {
         e.preventDefault();
         replaceBlockWithDiv(block);
-      } else if (tag === 'BLOCKQUOTE') {
+      } else if (tag === 'BLOCKQUOTE' || block.getAttribute('data-md-quote')) {
         e.preventDefault();
         replaceBlockWithDiv(block);
       } else if (tag === 'PRE') {
@@ -239,9 +239,38 @@
         else if (trimmedPrefix === '###') { command = 'formatBlock'; arg = 'H3'; prefixLen = 3; }
         else if (trimmedPrefix === '*' || trimmedPrefix === '-') { command = 'insertUnorderedList'; prefixLen = 1; }
         else if (/^\d+\.$/.test(trimmedPrefix)) { command = 'insertOrderedList'; prefixLen = trimmedPrefix.length; }
-        else if (trimmedPrefix === '>') { command = 'formatBlock'; arg = 'blockquote'; prefixLen = 1; }
+        else if (trimmedPrefix === '>') { command = 'insertQuoteDiv'; prefixLen = 1; }
 
-        if (command) {
+        if (command === 'insertQuoteDiv') {
+          e.preventDefault();
+          deleteBackwards(prefixLen);
+          // Use formatBlock to wrap the current line in a blockquote, then immediately
+          // replace it with a styled <div>. This avoids Gmail's email renderer stripping
+          // styles from <blockquote> elements.
+          document.execCommand('formatBlock', false, 'blockquote');
+          const currentSel = window.getSelection();
+          if (currentSel.rangeCount) {
+            let bq = currentSel.getRangeAt(0).startContainer;
+            if (bq.nodeType === Node.TEXT_NODE) bq = bq.parentNode;
+            while (bq && bq !== body && bq.tagName !== 'BLOCKQUOTE') bq = bq.parentNode;
+            if (bq && bq.tagName === 'BLOCKQUOTE') {
+              const quoteDiv = document.createElement('div');
+              quoteDiv.setAttribute('style', BLOCKQUOTE_INLINE_STYLE);
+              quoteDiv.setAttribute('data-md-quote', '1');
+              while (bq.firstChild) quoteDiv.appendChild(bq.firstChild);
+              bq.parentNode.replaceChild(quoteDiv, bq);
+              const emptyDiv = document.createElement('div');
+              emptyDiv.innerHTML = '<br>';
+              quoteDiv.parentNode.insertBefore(emptyDiv, quoteDiv.nextSibling);
+              const newRange = document.createRange();
+              newRange.setStart(quoteDiv, 0);
+              newRange.collapse(true);
+              currentSel.removeAllRanges();
+              currentSel.addRange(newRange);
+            }
+          }
+          return;
+        } else if (command) {
           e.preventDefault();
           deleteBackwards(prefixLen);
           document.execCommand(command, false, arg);
@@ -253,14 +282,10 @@
               const currentRange = currentSel.getRangeAt(0);
               let blockEl = currentRange.startContainer;
               if (blockEl.nodeType === Node.TEXT_NODE) blockEl = blockEl.parentNode;
-              while (blockEl && blockEl !== body && !blockEl.matches('h1, h2, h3, h4, h5, h6, blockquote')) {
+              while (blockEl && blockEl !== body && !blockEl.matches('h1, h2, h3, h4, h5, h6')) {
                 blockEl = blockEl.parentNode;
               }
               if (blockEl && blockEl !== body) {
-                // Apply inline styles to blockquote so formatting survives email send
-                if (blockEl.tagName === 'BLOCKQUOTE') {
-                  blockEl.setAttribute('style', BLOCKQUOTE_INLINE_STYLE);
-                }
                 const emptyDiv = document.createElement('div');
                 emptyDiv.innerHTML = '<br>';
                 blockEl.parentNode.insertBefore(emptyDiv, blockEl.nextSibling);
@@ -497,7 +522,10 @@
   // so spacing matches Gmail's native contenteditable behavior
   function gmailifyHtml(html) {
     return html
-      .replace(/<blockquote>/gi, `<blockquote style="${BLOCKQUOTE_INLINE_STYLE}">`)
+      // Replace <blockquote> with a styled <div> — Gmail's renderer strips styles from
+      // <blockquote> elements, so a plain div with inline styles is more reliable.
+      .replace(/<blockquote[^>]*>/gi, `<div style="${BLOCKQUOTE_INLINE_STYLE}">`)
+      .replace(/<\/blockquote>/gi, '</div>')
       .replace(/<p>([\s\S]*?)<\/p>/g, '<div>$1</div>')
       .replace(/(<br>)+$/, ''); // strip trailing <br>
   }
