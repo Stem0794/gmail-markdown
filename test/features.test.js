@@ -34,4 +34,14 @@ describe('Extension features', function() {
     assert.include(style.textContent, 'text-transform: uppercase !important;');
   });
 
+  it('gmailifyHtml adds inline styles to blockquote so formatting survives email send', function() {
+    const { gmailifyHtml } = loadScript();
+    const input = '<blockquote><p>hello</p></blockquote>';
+    const output = gmailifyHtml(input);
+    assert.include(output, 'border-left:4px solid #ccc');
+    assert.include(output, '<blockquote style="');
+    // <p> inside blockquote should also be converted to <div>
+    assert.include(output, '<div>hello</div>');
+  });
+
 });
