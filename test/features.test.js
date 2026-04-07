@@ -54,4 +54,21 @@ describe('Extension features', function() {
     assert.notMatch(src, /style[^"]*background\s*:#/);
   });
 
+  it('contentScript does not use other CSS properties commonly stripped by Gmail', function() {
+    const fs = require('fs');
+    const src = fs.readFileSync(require('path').join(__dirname, '../contentScript.js'), 'utf8');
+    
+    // Gmail strips Flexbox and CSS Grid
+    assert.notMatch(src, /style[^='"]*display\s*:\s*(flex|grid)/i, 'Should not use display: flex or grid in inline styles');
+    
+    // Gmail often strips position absolute and fixed
+    assert.notMatch(src, /style[^='"]*position\s*:\s*(absolute|fixed)/i, 'Should not use position: absolute or fixed in inline styles');
+    
+    // Gmail strips negative margins
+    assert.notMatch(src, /style[^='"]*margin[^:]*:\s*-[0-9]/i, 'Should not use negative margins in inline styles');
+    
+    // Gmail strips float
+    assert.notMatch(src, /style[^='"]*float\s*:/i, 'Should not use float in inline styles');
+  });
+
 });
