@@ -46,4 +46,12 @@ describe('Extension features', function() {
     assert.include(output, '<div>hello</div>');
   });
 
+  it('contentScript does not use background shorthand (Gmail strips it)', function() {
+    const fs = require('fs');
+    const src = fs.readFileSync(require('path').join(__dirname, '../contentScript.js'), 'utf8');
+    // background shorthand (e.g. background:#xxx or background: #xxx) should not appear
+    // as an inline style value — use background-color instead so Gmail preserves it.
+    assert.notMatch(src, /style[^"]*background\s*:#/);
+  });
+
 });

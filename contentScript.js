@@ -75,15 +75,20 @@
 
   function replaceBlockWithDiv(block) {
     const isPreBlock = block.tagName === 'PRE';
+    const isCodeWrapper = !!(block.getAttribute && block.getAttribute('data-md-code'));
     const div = document.createElement('div');
-    if (isPreBlock) {
-      block.querySelectorAll('[style]').forEach(el => el.removeAttribute('style'));
+    if (isPreBlock || isCodeWrapper) {
+      // For code wrappers, unwrap the inner <pre> content
+      const source = isCodeWrapper ? (block.querySelector('pre') || block) : block;
+      source.querySelectorAll('[style]').forEach(el => el.removeAttribute('style'));
+      while (source.firstChild) div.appendChild(source.firstChild);
+    } else {
+      while (block.firstChild) div.appendChild(block.firstChild);
     }
-    while (block.firstChild) div.appendChild(block.firstChild);
     if (!div.hasChildNodes()) div.innerHTML = '<br>';
     block.parentNode.replaceChild(div, block);
     const s = window.getSelection();
-    if (isPreBlock) {
+    if (isPreBlock || isCodeWrapper) {
       const contentRange = document.createRange();
       contentRange.selectNodeContents(div);
       s.removeAllRanges();
@@ -99,15 +104,18 @@
   }
 
   function insertCodeBlock(body) {
-    const style = 'background-color:#f7f6f3;border-radius:3px;padding:12px 16px;font-family:SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;font-size:0.85em;white-space:pre-wrap;margin:4px 0;color:#333;';
-    const html = `<pre style="${style}"><br></pre><div><br></div>`;
+    // Outer <div> provides background-color (Gmail strips background-color from <pre>).
+    // Inner <pre> handles whitespace preservation and native Enter behaviour.
+    const wrapperStyle = 'background-color:#f7f6f3;border-radius:3px;padding:12px 16px;margin:4px 0;';
+    const preStyle = 'font-family:SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;font-size:0.85em;white-space:pre-wrap;color:#333;margin:0;padding:0;';
+    const html = `<div data-md-code="1" style="${wrapperStyle}"><pre style="${preStyle}"><br></pre></div><div><br></div>`;
     document.execCommand('insertHTML', false, html);
 
     // Place cursor inside the <pre> block
     const sel = window.getSelection();
-    const pres = body.querySelectorAll('pre');
-    if (pres.length) {
-      const pre = pres[pres.length - 1];
+    const wrappers = body.querySelectorAll('[data-md-code] pre');
+    if (wrappers.length) {
+      const pre = wrappers[wrappers.length - 1];
       const newRange = document.createRange();
       newRange.setStart(pre, 0);
       newRange.collapse(true);
@@ -145,7 +153,7 @@
 
       // Find the closest block element first
       let block = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
-      while (block && block !== body && !block.matches('h1, h2, h3, h4, h5, h6, blockquote, li, pre, [data-md-quote]')) {
+      while (block && block !== body && !block.matches('h1, h2, h3, h4, h5, h6, blockquote, li, pre, [data-md-quote], [data-md-code]')) {
         block = block.parentNode;
       }
 
@@ -154,7 +162,7 @@
         if (node === body && range.startOffset === 0) {
           const firstChild = body.childNodes[0];
           if (firstChild && firstChild.nodeType === Node.ELEMENT_NODE &&
-              firstChild.matches('h1, h2, h3, h4, h5, h6, blockquote, pre, [data-md-quote]')) {
+              firstChild.matches('h1, h2, h3, h4, h5, h6, blockquote, pre, [data-md-quote], [data-md-code]')) {
             e.preventDefault();
             replaceBlockWithDiv(firstChild);
           }
@@ -172,7 +180,7 @@
       } else if (tag === 'BLOCKQUOTE' || block.getAttribute('data-md-quote')) {
         e.preventDefault();
         replaceBlockWithDiv(block);
-      } else if (tag === 'PRE') {
+      } else if (tag === 'PRE' || block.getAttribute('data-md-code')) {
         e.preventDefault();
         replaceBlockWithDiv(block);
       } else if (tag === 'LI') {
@@ -358,11 +366,14 @@
           if (container.nodeType === Node.TEXT_NODE && container.textContent.endsWith('\n')) {
             container.textContent = container.textContent.slice(0, -1);
           }
-          let afterEl = preEl.nextSibling;
+          // If pre is inside a code wrapper div, exit the wrapper instead
+          const exitTarget = (preEl.parentElement && preEl.parentElement.getAttribute('data-md-code'))
+            ? preEl.parentElement : preEl;
+          let afterEl = exitTarget.nextSibling;
           if (!afterEl) {
             afterEl = document.createElement('div');
             afterEl.innerHTML = '<br>';
-            preEl.parentNode.insertBefore(afterEl, preEl.nextSibling);
+            exitTarget.parentNode.insertBefore(afterEl, exitTarget.nextSibling);
           }
           const exitRange = document.createRange();
           exitRange.setStart(afterEl, 0);
