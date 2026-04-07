@@ -22,6 +22,14 @@ A Chrome extension that lets you compose Gmail messages in Markdown and convert 
 3. Enable **Developer mode** (top-right toggle).
 4. Click **Load unpacked** and select the repository folder.
 
+## Gmail Compatibility
+
+This extension includes a dedicated **Gmailify Engine** designed to ensure your Markdown formatting survives Gmail's aggressive style sanitization:
+
+- **Blockquote Preservation:** Gmail strips CSS from standard `<blockquote>` tags. We automatically convert them to styled `<div>` elements with inline borders to maintain the visual quote style.
+- **Inline Style Injection:** Styles are inserted directly into the HTML to bypass Gmail's tendency to strip separate `<style>` blocks.
+- **CSS Sanitization Guard:** Our test suite actively monitors against the use of CSS properties that Gmail is known to strip (like Flexbox, Grid, and absolute positioning) to ensure your emails look consistent across all devices.
+
 ## Usage
 
 1. Open Gmail and compose a new message.
@@ -118,6 +126,13 @@ npm install
 ```bash
 npm test
 ```
+
+The test suite covers:
+- Core Markdown-to-HTML conversion
+- HTML-to-Markdown reverse conversion
+- Emoji replacement logic
+- Theme application
+- **Gmail Sanitization Defense:** Verifies that no Gmail-unsupported CSS (Flexbox, Grid, absolute positioning, etc.) is used in produced styles.
 
 ### Packaging for the Chrome Web Store
 
