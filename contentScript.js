@@ -1,4 +1,4 @@
-(function() {
+(function () {
   const DEFAULTS = {
     convertOnPaste: false,
     autoConvert: false,
@@ -46,14 +46,16 @@
         ${sel} h3 { font-size: 1.1em !important; font-weight: bold !important; margin: 0.4em 0 !important; }
         ${sel} blockquote { border-left: 4px solid #ccc !important; padding-left: 10px !important; color: #555 !important; margin: 0.5em 0 !important; background: none !important; }
       `,
-      strong: `
+      bold: `
         ${sel} h1 { font-size: 1.4em !important; font-weight: bold !important; text-transform: uppercase !important; margin: 0.6em 0 !important; }
         ${sel} h2 { font-size: 1.2em !important; font-weight: bold !important; text-transform: uppercase !important; margin: 0.5em 0 !important; }
         ${sel} h3 { font-size: 1.1em !important; font-weight: bold !important; text-transform: uppercase !important; margin: 0.4em 0 !important; }
         ${sel} blockquote { border-left: 4px solid #ccc !important; padding-left: 10px !important; color: #555 !important; margin: 0.5em 0 !important; background: none !important; }
       `
     };
-    style.textContent = base + (themes[theme] || themes.default);
+    // Map 'strong' to 'bold' if user had it saved previously
+    let activeTheme = theme === 'strong' ? 'bold' : theme;
+    style.textContent = base + (themes[activeTheme] || themes.default);
   }
 
   function deleteBackwards(count) {
@@ -162,7 +164,7 @@
         if (node === body && range.startOffset === 0) {
           const firstChild = body.childNodes[0];
           if (firstChild && firstChild.nodeType === Node.ELEMENT_NODE &&
-              firstChild.matches('h1, h2, h3, h4, h5, h6, blockquote, pre, [data-md-quote], [data-md-code]')) {
+            firstChild.matches('h1, h2, h3, h4, h5, h6, blockquote, pre, [data-md-quote], [data-md-code]')) {
             e.preventDefault();
             replaceBlockWithDiv(firstChild);
           }
@@ -317,9 +319,9 @@
           e.preventDefault();
           const fullMatch = match[0];
           const content = match[2] || match[1] || fullMatch.replace(/^(\*\*|__|~~|\*|_|`)|(\*\*|__|~~|\*|_|`)$/g, '');
-          
+
           deleteBackwards(fullMatch.length);
-          
+
           if (f.cmd === 'code') {
             const html = `<code style="background-color: #2d2d2d; color: #ff6b6b; padding: 2px 6px; border-radius: 4px; font-family: monospace;">${content}</code>\u00A0`;
             document.execCommand('insertHTML', false, html);
@@ -328,7 +330,7 @@
             if (f.cmd === 'bold') style = 'font-weight:bold;';
             else if (f.cmd === 'italic') style = 'font-style:italic;';
             else if (f.cmd === 'strikeThrough') style = 'text-decoration:line-through;';
-            
+
             const html = `<span style="${style}">${content}</span>\u00A0`;
             document.execCommand('insertHTML', false, html);
           }
@@ -431,7 +433,7 @@
         const range = sel.getRangeAt(0);
         let container = range.startContainer;
         let offset = range.startOffset;
-        
+
         if (container.nodeType !== Node.TEXT_NODE) {
           if (container.childNodes[offset - 1] && container.childNodes[offset - 1].nodeType === Node.TEXT_NODE) {
             container = container.childNodes[offset - 1];
@@ -440,7 +442,7 @@
             return;
           }
         }
-        
+
         const text = container.textContent;
         if (text.slice(offset - 5, offset) === '/note') {
           e.preventDefault();
@@ -467,10 +469,10 @@
     const alt = parts.includes('alt');
     const meta = parts.includes('meta') || parts.includes('cmd');
     return e.key.toLowerCase() === key &&
-           e.ctrlKey === ctrl &&
-           e.shiftKey === shift &&
-           e.altKey === alt &&
-           e.metaKey === meta;
+      e.ctrlKey === ctrl &&
+      e.shiftKey === shift &&
+      e.altKey === alt &&
+      e.metaKey === meta;
   }
 
   function observePaste(convertOnPaste, callback) {
@@ -580,7 +582,7 @@
       observeShortcuts(opts);
       observePaste(opts.convertOnPaste, (text) => convertMarkdown(opts, text));
       if (opts.autoConvert) observeSendButton(() => convertMarkdown(opts));
-      
+
       document.addEventListener('keydown', (e) => {
         if (opts.shortcut && matchesShortcut(e, opts.shortcut)) {
           e.preventDefault();

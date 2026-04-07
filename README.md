@@ -69,28 +69,25 @@ Click the extension icon → *Options* (or go to `chrome://extensions` → *Deta
 | Convert on Send | Convert just before the message is sent |
 | GitHub flavored Markdown | Enable GFM extensions (tables, task lists, etc.) |
 | Sanitize HTML | Strip potentially unsafe HTML tags |
-| Theme | Choose between Clean, Notion-style, or Email-friendly (see below) |
+| Theme | Choose between **Default** or **Bold** theme style |
 | Custom Shortcut | Override the default `Ctrl+Shift+M` shortcut |
 | Disable default shortcut | Turn off the built-in keyboard command |
 
 ### Themes
 
-Themes control how rendered Markdown looks inside the Gmail compose window.
+### Themes
 
-#### Clean *(default)*
-A minimal, lightweight style suited for most everyday emails.
-- Headings: slightly larger than body text (h1 = 1.4×, h2 = 1.2×), compact spacing
-- Blockquotes: thin gray left border, muted gray text
+Themes control how your rendered Markdown text appears in the Gmail compose window. You can switch between them in the extension options page.
 
-#### Notion-style
-Inspired by Notion's document aesthetic — spacious and readable.
-- Headings: slightly larger than Clean (h1 = 1.5×, h2 = 1.25×), more generous vertical spacing
-- Blockquotes: medium gray left border, dark text on a very light gray background
+#### Default *(Standard)*
+The recommended minimal style. It uses standard Gmail-compatible typography with subtle accents.
+- **Headings:** Slightly larger than body text (1.4em) for clear visual hierarchy.
+- **Blockquotes:** Elegant thin gray left border with slightly muted text to distinguish quotes.
 
-#### Email-friendly
-Designed for maximum compatibility across email clients that strip custom styles.
-- Headings: same size as body text but **bold** — avoids visual inconsistencies in clients that ignore font-size
-- Blockquotes: gray left border, plain black text, no background color
+#### Bold *(High Contrast)*
+A more assertive theme designed for better readability of structure.
+- **Headings:** Headers are made **Uppercase** and **Bold** to create a distinct professional divide between sections.
+- **Blockquotes:** Same consistent border as the Default theme to maintain Gmail compatibility.
 
 ## Project Structure
 
