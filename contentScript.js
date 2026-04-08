@@ -14,6 +14,7 @@
   const BLOCKQUOTE_INLINE_STYLE = 'border-left:4px solid #ccc;padding-left:24px !important;color:#555;margin:0.5em 0;background:none;';
   const PRE_WRAPPER_STYLE = 'background-color:#f7f6f3;border-radius:3px;padding:12px 16px;margin:1em 0;';
   const PRE_CODE_STYLE = 'font-family:SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;font-size:0.85em;white-space:pre-wrap;color:#333;margin:0;padding:0;display:block;';
+  const INLINE_CODE_STYLE = 'background-color:#f2f2f2;color:#d73a49;padding:2px 4px;border-radius:3px;font-family:monospace;';
 
   const AUTO_FORMATS = [
     { reg: /(\*\*|__)(.+?)\1$/, cmd: 'bold' },
@@ -452,7 +453,7 @@
             } else {
               const selectedText = sel.toString();
               const escaped = selectedText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-              const html = `<code style="background-color: #2d2d2d; color: #ff6b6b; padding: 2px 6px; border-radius: 4px; font-family: monospace;">${escaped}</code>`;
+              const html = `<code style="${INLINE_CODE_STYLE}">${escaped}</code>`;
               document.execCommand('insertHTML', false, html);
             }
             return;
@@ -561,6 +562,8 @@
       .replace(/<\/blockquote>/gi, '</div>')
       // Wrap <pre> blocks in a styled <div> to preserve background color and formatting
       .replace(/<pre[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/gi, `<div style="${PRE_WRAPPER_STYLE}"><pre style="${PRE_CODE_STYLE}">$1</pre></div>`)
+      // Apply inline styles to standalone <code> tags
+      .replace(/<code[^>]*>([\s\S]*?)<\/code>/gi, `<code style="${INLINE_CODE_STYLE}">$1</code>`)
       .replace(/<p>([\s\S]*?)<\/p>/g, '<div>$1</div>')
       .replace(/(<br>)+$/, ''); // strip trailing <br>
   }
