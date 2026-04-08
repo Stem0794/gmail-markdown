@@ -12,7 +12,7 @@
   const SELECTOR = 'div[aria-label="Message Body"][contenteditable="true"]';
 
   // Inline styles for blockquote so formatting survives email send (Gmail strips <style> tags)
-  const BLOCKQUOTE_INLINE_STYLE = 'border-left:4px solid #ccc;padding-left:24px;color:#555;margin:0.5em 0;background:none;';
+  const BLOCKQUOTE_INLINE_STYLE = 'border-left:4px solid #ccc;padding-left:24px !important;color:#555;margin:0.5em 0;background:none;';
 
   const AUTO_FORMATS = [
     { reg: /(\*\*|__)(.+?)\1$/, cmd: 'bold' },
@@ -54,7 +54,7 @@
     }
     const sel = 'div[aria-label="Message Body"][contenteditable="true"]';
     const base = `
-        ${sel} > div, ${sel} > p { margin: 0 !important; padding: 0 !important; }
+        ${sel} > div:not([style]), ${sel} > p:not([style]) { margin: 0 !important; padding: 0 !important; }
     `;
     const themes = {
       default: `
