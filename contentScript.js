@@ -11,8 +11,9 @@
 
   const SELECTOR = 'div[aria-label="Message Body"][contenteditable="true"]';
 
-  // Inline styles for blockquote so formatting survives email send (Gmail strips <style> tags)
   const BLOCKQUOTE_INLINE_STYLE = 'border-left:4px solid #ccc;padding-left:24px !important;color:#555;margin:0.5em 0;background:none;';
+  const PRE_WRAPPER_STYLE = 'background-color:#f7f6f3;border-radius:3px;padding:12px 16px;margin:1em 0;';
+  const PRE_CODE_STYLE = 'font-family:SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;font-size:0.85em;white-space:pre-wrap;color:#333;margin:0;padding:0;display:block;';
 
   const AUTO_FORMATS = [
     { reg: /(\*\*|__)(.+?)\1$/, cmd: 'bold' },
@@ -131,8 +132,8 @@
   function insertCodeBlock(body) {
     // Outer <div> provides background-color (Gmail strips background-color from <pre>).
     // Inner <pre> handles whitespace preservation and native Enter behaviour.
-    const wrapperStyle = 'background-color:#f7f6f3;border-radius:3px;padding:12px 16px;margin:4px 0;';
-    const preStyle = 'font-family:SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;font-size:0.85em;white-space:pre-wrap;color:#333;margin:0;padding:0;';
+    const wrapperStyle = PRE_WRAPPER_STYLE;
+    const preStyle = PRE_CODE_STYLE;
     const html = `<div data-md-code="1" style="${wrapperStyle}"><pre style="${preStyle}"><br></pre></div><div><br></div>`;
     document.execCommand('insertHTML', false, html);
 
@@ -558,6 +559,8 @@
       // <blockquote> elements, so a plain div with inline styles is more reliable.
       .replace(/<blockquote[^>]*>/gi, `<div style="${BLOCKQUOTE_INLINE_STYLE}">`)
       .replace(/<\/blockquote>/gi, '</div>')
+      // Wrap <pre> blocks in a styled <div> to preserve background color and formatting
+      .replace(/<pre[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/gi, `<div style="${PRE_WRAPPER_STYLE}"><pre style="${PRE_CODE_STYLE}">$1</pre></div>`)
       .replace(/<p>([\s\S]*?)<\/p>/g, '<div>$1</div>')
       .replace(/(<br>)+$/, ''); // strip trailing <br>
   }
