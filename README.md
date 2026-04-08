@@ -121,7 +121,8 @@ npm install
 ### Run tests
 
 ```bash
-npm test
+npm run test
+npm run test:e2e
 ```
 
 The test suite covers:
@@ -130,11 +131,16 @@ The test suite covers:
 - Emoji replacement logic
 - Theme application
 - **Gmail Sanitization Defense:** Verifies that no Gmail-unsupported CSS (Flexbox, Grid, absolute positioning, etc.) is used in produced styles.
+- **Playwright E2E Tests:** Fully automated end-to-end tests covering keyboard shortcuts and auto-formatting live in the browser.
+
+### Visual Testbed
+
+A standalone mock testing document is available at `test/visual-testbed.html`. You can open this file in any web browser to see a mock Gmail composition window. It allows you to trigger inline Markdown formatting and conversions visually without installing the extension.
 
 ### Packaging for the Chrome Web Store
 
 1. Update the `version` field in `manifest.json`.
-2. Zip the extension folder (excluding `node_modules/` and `.git/`).
+2. Run `npm run build:zip` in your terminal. This will automatically generate an `extension.zip` file that securely excludes test fixtures, the visual testbook, and your `node_modules` directory.
 3. Upload to the [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole).
 
 ## License

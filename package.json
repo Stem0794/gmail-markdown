@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "test": "mocha",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "build:zip": "zip -r extension.zip . -x '*.git*' 'test/*' 'node_modules/*' 'extension.zip' '.npmignore' '*playwright*' 'package-lock.json' 'package.json'"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",

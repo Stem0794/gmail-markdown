@@ -13,13 +13,30 @@
   const SELECTOR = 'div[aria-label="Message Body"][contenteditable="true"]';
 
   // Inline styles for blockquote so formatting survives email send (Gmail strips <style> tags)
-  const BLOCKQUOTE_INLINE_STYLE = 'border-left:4px solid #ccc;padding-left:10px;color:#555;margin:0.5em 0;background:none;';
+  const BLOCKQUOTE_INLINE_STYLE = 'border-left:4px solid #ccc;padding-left:16px;color:#555;margin:0.5em 0;background:none;';
 
-  function debugLog(...args) {
-    if (window.GM_DEBUG) console.log('[gmail-md]', ...args);
-  }
+  const AUTO_FORMATS = [
+    { reg: /(\*\*|__)(.+?)\1$/, cmd: 'bold' },
+    { reg: /(\*|_)(.+?)\1$/, cmd: 'italic' },
+    { reg: /~~(.+?)~~$/, cmd: 'strikeThrough' },
+    { reg: /`(.+?)`$/, cmd: 'code' }
+  ];
 
-  function getEditable() {
+  function getActiveEditable() {
+    const active = document.activeElement;
+    if (active && active.matches && active.matches(SELECTOR)) return active;
+    
+    // Fallback based on text selection
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount) {
+      let node = sel.getRangeAt(0).commonAncestorContainer;
+      while (node && node !== document.body) {
+        if (node.nodeType === Node.ELEMENT_NODE && node.matches(SELECTOR)) return node;
+        node = node.parentNode;
+      }
+    }
+    
+    // Absolute fallback: first editor on page
     return document.querySelector(SELECTOR);
   }
 
@@ -44,13 +61,13 @@
         ${sel} h1 { font-size: 1.4em !important; font-weight: bold !important; margin: 0.6em 0 !important; }
         ${sel} h2 { font-size: 1.2em !important; font-weight: bold !important; margin: 0.5em 0 !important; }
         ${sel} h3 { font-size: 1.1em !important; font-weight: bold !important; margin: 0.4em 0 !important; }
-        ${sel} blockquote { border-left: 4px solid #ccc !important; padding-left: 10px !important; color: #555 !important; margin: 0.5em 0 !important; background: none !important; }
+        ${sel} blockquote { border-left: 4px solid #ccc !important; padding-left: 16px !important; color: #555 !important; margin: 0.5em 0 !important; background: none !important; }
       `,
       bold: `
         ${sel} h1 { font-size: 1.4em !important; font-weight: bold !important; text-transform: uppercase !important; margin: 0.6em 0 !important; }
         ${sel} h2 { font-size: 1.2em !important; font-weight: bold !important; text-transform: uppercase !important; margin: 0.5em 0 !important; }
         ${sel} h3 { font-size: 1.1em !important; font-weight: bold !important; text-transform: uppercase !important; margin: 0.4em 0 !important; }
-        ${sel} blockquote { border-left: 4px solid #ccc !important; padding-left: 10px !important; color: #555 !important; margin: 0.5em 0 !important; background: none !important; }
+        ${sel} blockquote { border-left: 4px solid #ccc !important; padding-left: 16px !important; color: #555 !important; margin: 0.5em 0 !important; background: none !important; }
       `
     };
     // Map 'strong' to 'bold' if user had it saved previously
@@ -306,14 +323,7 @@
         }
       }
 
-      const formats = [
-        { reg: /(\*\*|__)(.+?)\1$/, cmd: 'bold' },
-        { reg: /(\*|_)(.+?)\1$/, cmd: 'italic' },
-        { reg: /~~(.+?)~~$/, cmd: 'strikeThrough' },
-        { reg: /`(.+?)`$/, cmd: 'code' }
-      ];
-
-      for (const f of formats) {
+      for (const f of AUTO_FORMATS) {
         const match = textBefore.match(f.reg);
         if (match) {
           e.preventDefault();
@@ -389,12 +399,11 @@
     }
   }
 
-  function observeShortcuts(opts) {
-    function attachListener(body) {
-      applyTheme(opts.theme);
-      if (body._mdShortcutsAttached) return;
-      body._mdShortcutsAttached = true;
-      body.addEventListener('keydown', (e) => {
+  function attachShortcutListener(body, opts) {
+    applyTheme(opts.theme);
+    if (body._mdShortcutsAttached) return;
+    body._mdShortcutsAttached = true;
+    body.addEventListener('keydown', (e) => {
         if (opts.autoFormat) {
           applyAutoFormat(e, body);
         }
@@ -451,14 +460,6 @@
           document.execCommand('insertHTML', false, html);
         }
       });
-    }
-    const existing = getEditable();
-    if (existing) attachListener(existing);
-    const observer = new MutationObserver(() => {
-      const body = getEditable();
-      if (body) attachListener(body);
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
   }
 
   function matchesShortcut(e, combo) {
@@ -475,17 +476,17 @@
       e.metaKey === meta;
   }
 
-  function observePaste(convertOnPaste, callback) {
-    function attachListener(body) {
-      if (body._mdPasteAttached) return;
-      body._mdPasteAttached = true;
-      body.addEventListener('paste', (e) => {
+  function attachPasteListener(body, opts) {
+    if (body._mdPasteAttached) return;
+    body._mdPasteAttached = true;
+    body.addEventListener('paste', (e) => {
         const text = e.clipboardData.getData('text/plain');
         if (!text) return;
         e.preventDefault();
         e.stopImmediatePropagation();
-        if (convertOnPaste) {
-          callback(text);
+        if (opts.convertOnPaste) {
+          // Because convertMarkdown takes priority, we must trigger it
+          convertMarkdown(opts, text);
         } else {
           // Insert as plain text wrapped in <div> elements to match Gmail's native structure.
           // Using <br> instead would corrupt Gmail's contenteditable state, causing it to
@@ -502,26 +503,31 @@
           }
         }
       }, true);
-    }
-    const existing = getEditable();
-    if (existing) attachListener(existing);
-    const observer = new MutationObserver(() => {
-      const body = getEditable();
-      if (body) attachListener(body);
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
   }
 
-  function observeSendButton(callback) {
-    function attachListener(btn) {
-      if (btn._mdSendAttached) return;
-      btn._mdSendAttached = true;
-      btn.addEventListener('click', () => callback(), true);
+  function attachSendListener(btn, opts) {
+    if (btn._mdSendAttached) return;
+    btn._mdSendAttached = true;
+    btn.addEventListener('click', () => convertMarkdown(opts), true);
+  }
+
+  function setupCentralObserver(opts) {
+    function scanAndAttach() {
+      const editors = document.querySelectorAll(SELECTOR);
+      editors.forEach(body => {
+        attachShortcutListener(body, opts);
+        attachPasteListener(body, opts);
+      });
+
+      if (opts.autoConvert) {
+        const sendBtns = document.querySelectorAll('div[aria-label^="Send"]');
+        sendBtns.forEach(btn => attachSendListener(btn, opts));
+      }
     }
-    const observer = new MutationObserver(() => {
-      const btn = document.querySelector('div[aria-label^="Send"]');
-      if (btn) attachListener(btn);
-    });
+
+    scanAndAttach();
+
+    const observer = new MutationObserver(() => scanAndAttach());
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
@@ -545,7 +551,7 @@
 
   function convertMarkdown(opts, markdownText) {
     applyTheme(opts.theme);
-    const emailBody = getEditable();
+    const emailBody = getActiveEditable();
     const markedLib = window.marked || (typeof marked !== 'undefined' ? marked : null);
     if (!emailBody || !markedLib || typeof markedLib.parse !== 'function') {
       console.warn('[gmail-md] Marked library not ready');
@@ -579,9 +585,7 @@
   if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
     chrome.storage.sync.get(DEFAULTS, (opts) => {
       applyTheme(opts.theme);
-      observeShortcuts(opts);
-      observePaste(opts.convertOnPaste, (text) => convertMarkdown(opts, text));
-      if (opts.autoConvert) observeSendButton(() => convertMarkdown(opts));
+      setupCentralObserver(opts);
 
       document.addEventListener('keydown', (e) => {
         if (opts.shortcut && matchesShortcut(e, opts.shortcut)) {
@@ -598,7 +602,7 @@
       matchesShortcut,
       applyTheme,
       convertMarkdown,
-      observeShortcuts,
+      setupCentralObserver,
       gmailifyHtml
     };
   }

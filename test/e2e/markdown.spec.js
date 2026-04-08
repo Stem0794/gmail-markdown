@@ -34,7 +34,6 @@ async function setupPage(page, overrides = {}) {
   await page.addScriptTag({ path: MARKED_JS });
   await page.addScriptTag({ path: EMOJI_JS });
   await page.addScriptTag({ path: CONTENT_JS });
-
   await page.locator('[aria-label="Message Body"]').click();
 }
 
@@ -119,17 +118,27 @@ test('Ctrl+E does nothing when no text is selected', async ({ page }) => {
 });
 
 test('custom codeShortcut replaces Ctrl+E', async ({ page }) => {
-  await setupPage(page, { codeShortcut: 'Ctrl+Shift+E' });
+  await setupPage(page, { codeShortcut: 'Ctrl+Shift+K' });
   await setEditorText(page, 'hello world');
   await selectAll(page);
 
-  // Default Ctrl+E should NOT trigger
+  // Default Ctrl+E should NOT trigger, but it might natively steal focus (e.g., to omnibox).
   await page.keyboard.press('Control+e');
   let html = await page.locator(EDITOR).innerHTML();
   expect(html).not.toContain('<code');
 
+  // Must refocus the editor and re-select text because Ctrl+e moved focus away!
+  await page.evaluate(() => {
+    const div = document.querySelector('[aria-label="Message Body"]');
+    div.focus();
+    const range = document.createRange();
+    range.selectNodeContents(div);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+  });
+
   // Custom shortcut should trigger
-  await page.keyboard.press('Control+Shift+E');
+  await page.keyboard.press('Control+Shift+K');
   html = await page.locator(EDITOR).innerHTML();
   expect(html).toContain('<code');
 });
@@ -165,7 +174,7 @@ test('auto-formats "> " into a blockquote', async ({ page }) => {
   await setEditorText(page, '>');
   await page.keyboard.press('Space');
 
-  await expect(page.locator(`${EDITOR} blockquote`)).toBeAttached();
+  await expect(page.locator(`${EDITOR} [data-md-quote]`)).toBeAttached();
 });
 
 test('auto-formats "* " into an unordered list item', async ({ page }) => {

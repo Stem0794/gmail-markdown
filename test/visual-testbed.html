@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Markdown for Gmail - Visual Testbed</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      background: #f7f9fc;
+      color: #333;
+    }
+    .composer {
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 800px;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+    .header {
+      background: #f1f3f4;
+      padding: 12px 16px;
+      border-bottom: 1px solid #ccc;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header h2 {
+      margin: 0;
+      font-size: 16px;
+      color: #202124;
+    }
+    .btn {
+      background: #1a73e8;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .btn:hover { background: #1557b0; }
+    
+    .editable {
+      min-height: 400px;
+      padding: 20px;
+      outline: none;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    
+    /* Simulate Gmail standard default paragraph margins */
+    .editable div {
+      margin-bottom: 0px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="composer">
+  <div class="header">
+    <h2>Mock Gmail Compose Window</h2>
+    <div aria-label="Send" class="btn" role="button" tabindex="0">Send (Convert)</div>
+  </div>
+  <!-- Using innerText initialization so raw markdown preserves spacing perfectly -->
+  <div aria-label="Message Body" contenteditable="true" class="editable" id="editor"></div>
+</div>
+
+<script>
+const rawMarkdown = `
+# Heading 1 Test
+## Heading 2 Test
+### Heading 3 Test
+
+This is a paragraph featuring **bold text**, *italic text*, and ~~strikethrough~~.
+Check out this \`inline code snippet\`.
+
+> This is a blockquote.
+> It should render with a custom styled div wrapper so it survives the Gmail pipeline.
+
+* Unordered list item 1
+* Unordered list item 2
+
+1. Ordered list item A
+2. Ordered list item B
+
+Here is a [link to Google](https://google.com).
+    
+And finally, some emojis: :smile: :rocket: :thumbsup:
+
+---
+
+\`\`\`javascript
+function testBlock() {
+  console.log("This is a code block");
+}
+\`\`\`
+`.trim();
+
+document.getElementById('editor').innerText = rawMarkdown;
+
+// Mocking chrome.storage API for contentScript.js
+window.chrome = {
+  storage: {
+    sync: {
+      get: function(defaultOptions, callback) {
+        callback({
+          convertOnPaste: false,
+          autoConvert: true, // Allow clicking the mocked send button to trigger it manually
+          autoFormat: true,
+          gfm: true,
+          theme: 'default',
+          shortcut: 'Ctrl+Shift+M',
+          codeShortcut: 'Ctrl+E',
+          disableDefault: false
+        });
+      }
+    }
+  }
+};
+</script>
+
+<script src="../marked.min.js"></script>
+<script src="../emoji.js"></script>
+<script src="../contentScript.js"></script>
+
+</body>
+</html>
