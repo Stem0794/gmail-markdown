@@ -3,7 +3,6 @@ var DEFAULTS = {
   autoConvert: false,
   autoFormat: true,
   gfm: true,
-  sanitize: false,
   theme: 'default',
   shortcut: 'Ctrl+Shift+M',
   codeShortcut: 'Ctrl+E',
@@ -45,7 +44,6 @@ function saveOptions() {
     autoConvert: document.getElementById('autoConvert').checked,
     autoFormat: document.getElementById('autoFormat').checked,
     gfm: document.getElementById('gfm').checked,
-    sanitize: document.getElementById('sanitize').checked,
     theme: document.getElementById('theme').value,
     shortcut: shortcutInput || DEFAULTS.shortcut,
     codeShortcut: codeShortcutInput || DEFAULTS.codeShortcut,
@@ -74,7 +72,6 @@ function restoreOptions() {
     document.getElementById('autoConvert').checked = items.autoConvert;
     document.getElementById('autoFormat').checked = items.autoFormat;
     document.getElementById('gfm').checked = items.gfm;
-    document.getElementById('sanitize').checked = items.sanitize;
     document.getElementById('theme').value = items.theme;
     document.getElementById('shortcut').value = items.shortcut;
     document.getElementById('codeShortcut').value = items.codeShortcut;

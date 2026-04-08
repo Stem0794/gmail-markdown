@@ -68,7 +68,6 @@ Click the extension icon → *Options* (or go to `chrome://extensions` → *Deta
 | Convert on Paste | Auto-convert Markdown when you paste text |
 | Convert on Send | Convert just before the message is sent |
 | GitHub flavored Markdown | Enable GFM extensions (tables, task lists, etc.) |
-| Sanitize HTML | Strip potentially unsafe HTML tags |
 | Theme | Choose between **Default** or **Bold** theme style |
 | Custom Shortcut | Override the default `Ctrl+Shift+M` shortcut |
 | Disable default shortcut | Turn off the built-in keyboard command |
