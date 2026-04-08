@@ -355,8 +355,27 @@
           deleteBackwards(fullMatch.length);
 
           if (f.cmd === 'code') {
-            const html = `<code style="${INLINE_CODE_STYLE}">${content}</code>\u00A0`;
+            const html = `<code style="${INLINE_CODE_STYLE}">${content}</code>`;
             document.execCommand('insertHTML', false, html);
+            // Explicitly place cursor outside the <code> element so the browser
+            // doesn't carry forward monospace/padding styles into subsequent text.
+            const codeSel = window.getSelection();
+            if (codeSel.rangeCount) {
+              let cur = codeSel.getRangeAt(0).startContainer;
+              if (cur.nodeType === Node.TEXT_NODE) cur = cur.parentNode;
+              while (cur && cur !== body && cur.tagName !== 'CODE') cur = cur.parentNode;
+              if (cur && cur.tagName === 'CODE') {
+                const space = document.createTextNode('\u00A0');
+                cur.parentNode.insertBefore(space, cur.nextSibling);
+                const r = document.createRange();
+                r.setStartAfter(space);
+                r.collapse(true);
+                codeSel.removeAllRanges();
+                codeSel.addRange(r);
+              } else {
+                document.execCommand('insertText', false, '\u00A0');
+              }
+            }
           } else if (f.cmd === 'emoji') {
             document.execCommand('insertText', false, emojiStr + '\u00A0');
           } else {
