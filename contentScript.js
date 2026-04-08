@@ -12,7 +12,7 @@
   const SELECTOR = 'div[aria-label="Message Body"][contenteditable="true"]';
 
   // Inline styles for blockquote so formatting survives email send (Gmail strips <style> tags)
-  const BLOCKQUOTE_INLINE_STYLE = 'border-left:4px solid #ccc;padding-left:16px;color:#555;margin:0.5em 0;background:none;';
+  const BLOCKQUOTE_INLINE_STYLE = 'border-left:4px solid #ccc;padding-left:24px;color:#555;margin:0.5em 0;background:none;';
 
   const AUTO_FORMATS = [
     { reg: /(\*\*|__)(.+?)\1$/, cmd: 'bold' },
@@ -61,7 +61,7 @@
         ${sel} h1 { font-size: 1.4em !important; font-weight: bold !important; margin: 0.6em 0 !important; }
         ${sel} h2 { font-size: 1.2em !important; font-weight: bold !important; margin: 0.5em 0 !important; }
         ${sel} h3 { font-size: 1.1em !important; font-weight: bold !important; margin: 0.4em 0 !important; }
-        ${sel} blockquote { border-left: 4px solid #ccc !important; padding-left: 16px !important; color: #555 !important; margin: 0.5em 0 !important; background: none !important; }
+        ${sel} blockquote { border-left: 4px solid #ccc !important; padding-left: 24px !important; color: #555 !important; margin: 0.5em 0 !important; background: none !important; }
         ${sel} table { border-collapse: collapse !important; border-spacing: 0 !important; margin: 0.5em 0 !important; }
         ${sel} th, ${sel} td { border: 1px solid #ccc !important; padding: 6px 10px !important; text-align: left !important; }
         ${sel} th { background-color: #f8f9fa !important; font-weight: bold !important; }
@@ -70,7 +70,7 @@
         ${sel} h1 { font-size: 1.4em !important; font-weight: bold !important; text-transform: uppercase !important; margin: 0.6em 0 !important; }
         ${sel} h2 { font-size: 1.2em !important; font-weight: bold !important; text-transform: uppercase !important; margin: 0.5em 0 !important; }
         ${sel} h3 { font-size: 1.1em !important; font-weight: bold !important; text-transform: uppercase !important; margin: 0.4em 0 !important; }
-        ${sel} blockquote { border-left: 4px solid #ccc !important; padding-left: 16px !important; color: #555 !important; margin: 0.5em 0 !important; background: none !important; }
+        ${sel} blockquote { border-left: 4px solid #ccc !important; padding-left: 24px !important; color: #555 !important; margin: 0.5em 0 !important; background: none !important; }
         ${sel} table { border-collapse: collapse !important; border-spacing: 0 !important; margin: 0.5em 0 !important; }
         ${sel} th, ${sel} td { border: 1px solid #ccc !important; padding: 6px 10px !important; text-align: left !important; }
         ${sel} th { background-color: #f8f9fa !important; font-weight: bold !important; text-transform: uppercase !important; }
