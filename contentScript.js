@@ -284,13 +284,20 @@
               const quoteDiv = document.createElement('div');
               quoteDiv.setAttribute('style', BLOCKQUOTE_INLINE_STYLE);
               quoteDiv.setAttribute('data-md-quote', '1');
+              
+              // Automatically inject a physical space so the user doesn't have to manually.
+              const spaceNode = document.createTextNode('\u00A0');
+              quoteDiv.appendChild(spaceNode);
+
               while (bq.firstChild) quoteDiv.appendChild(bq.firstChild);
               bq.parentNode.replaceChild(quoteDiv, bq);
               const emptyDiv = document.createElement('div');
               emptyDiv.innerHTML = '<br>';
               quoteDiv.parentNode.insertBefore(emptyDiv, quoteDiv.nextSibling);
               const newRange = document.createRange();
-              newRange.setStart(quoteDiv, 0);
+              
+              // Set cursor immediately after the injected space
+              newRange.setStart(spaceNode, 1);
               newRange.collapse(true);
               currentSel.removeAllRanges();
               currentSel.addRange(newRange);
