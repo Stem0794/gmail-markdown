@@ -129,6 +129,20 @@ window.chrome = {
     }
   }
 };
+
+// Manually trigger conversion when clicking the Send (Convert) button
+document.querySelector('.btn').addEventListener('click', () => {
+    const event = new KeyboardEvent('keydown', {
+        key: 'm',
+        keyCode: 77,
+        which: 77,
+        ctrlKey: true,
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true
+    });
+    document.dispatchEvent(event);
+});
 </script>
 
 <script src="../marked.min.js"></script>
