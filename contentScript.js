@@ -19,7 +19,8 @@
     { reg: /(\*\*|__)(.+?)\1$/, cmd: 'bold' },
     { reg: /(\*|_)(.+?)\1$/, cmd: 'italic' },
     { reg: /~~(.+?)~~$/, cmd: 'strikeThrough' },
-    { reg: /`(.+?)`$/, cmd: 'code' }
+    { reg: /`(.+?)`$/, cmd: 'code' },
+    { reg: /:([a-zA-Z0-9_\+\-]+):$/, cmd: 'emoji' }
   ];
 
   function getActiveEditable() {
@@ -62,12 +63,18 @@
         ${sel} h2 { font-size: 1.2em !important; font-weight: bold !important; margin: 0.5em 0 !important; }
         ${sel} h3 { font-size: 1.1em !important; font-weight: bold !important; margin: 0.4em 0 !important; }
         ${sel} blockquote { border-left: 4px solid #ccc !important; padding-left: 16px !important; color: #555 !important; margin: 0.5em 0 !important; background: none !important; }
+        ${sel} table { border-collapse: collapse !important; border-spacing: 0 !important; margin: 0.5em 0 !important; }
+        ${sel} th, ${sel} td { border: 1px solid #ccc !important; padding: 6px 10px !important; text-align: left !important; }
+        ${sel} th { background-color: #f8f9fa !important; font-weight: bold !important; }
       `,
       bold: `
         ${sel} h1 { font-size: 1.4em !important; font-weight: bold !important; text-transform: uppercase !important; margin: 0.6em 0 !important; }
         ${sel} h2 { font-size: 1.2em !important; font-weight: bold !important; text-transform: uppercase !important; margin: 0.5em 0 !important; }
         ${sel} h3 { font-size: 1.1em !important; font-weight: bold !important; text-transform: uppercase !important; margin: 0.4em 0 !important; }
         ${sel} blockquote { border-left: 4px solid #ccc !important; padding-left: 16px !important; color: #555 !important; margin: 0.5em 0 !important; background: none !important; }
+        ${sel} table { border-collapse: collapse !important; border-spacing: 0 !important; margin: 0.5em 0 !important; }
+        ${sel} th, ${sel} td { border: 1px solid #ccc !important; padding: 6px 10px !important; text-align: left !important; }
+        ${sel} th { background-color: #f8f9fa !important; font-weight: bold !important; text-transform: uppercase !important; }
       `
     };
     // Map 'strong' to 'bold' if user had it saved previously
@@ -333,15 +340,24 @@
       for (const f of AUTO_FORMATS) {
         const match = textBefore.match(f.reg);
         if (match) {
-          e.preventDefault();
           const fullMatch = match[0];
           const content = match[2] || match[1] || fullMatch.replace(/^(\*\*|__|~~|\*|_|`)|(\*\*|__|~~|\*|_|`)$/g, '');
 
+          let emojiStr = null;
+          if (f.cmd === 'emoji') {
+            const emojiMap = window.EMOJI_MAP || (typeof EMOJI_MAP !== 'undefined' ? EMOJI_MAP : {});
+            emojiStr = emojiMap[content] || emojiMap[content.toLowerCase()];
+            if (!emojiStr) continue; // Not a registered emoji, ignore
+          }
+
+          e.preventDefault();
           deleteBackwards(fullMatch.length);
 
           if (f.cmd === 'code') {
             const html = `<code style="background-color: #2d2d2d; color: #ff6b6b; padding: 2px 6px; border-radius: 4px; font-family: monospace;">${content}</code>\u00A0`;
             document.execCommand('insertHTML', false, html);
+          } else if (f.cmd === 'emoji') {
+            document.execCommand('insertText', false, emojiStr + '\u00A0');
           } else {
             let style = '';
             if (f.cmd === 'bold') style = 'font-weight:bold;';
