@@ -1,6 +1,5 @@
 var DEFAULTS = {
   convertOnPaste: false,
-  autoConvert: false,
   autoFormat: true,
   gfm: true,
   theme: 'default',
@@ -41,7 +40,6 @@ function saveOptions() {
 
   var opts = {
     convertOnPaste: document.getElementById('convertOnPaste').checked,
-    autoConvert: document.getElementById('autoConvert').checked,
     autoFormat: document.getElementById('autoFormat').checked,
     gfm: document.getElementById('gfm').checked,
     theme: document.getElementById('theme').value,
@@ -69,7 +67,6 @@ function saveOptions() {
 function restoreOptions() {
   chrome.storage.sync.get(DEFAULTS, function (items) {
     document.getElementById('convertOnPaste').checked = items.convertOnPaste;
-    document.getElementById('autoConvert').checked = items.autoConvert;
     document.getElementById('autoFormat').checked = items.autoFormat;
     document.getElementById('gfm').checked = items.gfm;
     document.getElementById('theme').value = items.theme;

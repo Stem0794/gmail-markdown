@@ -8,7 +8,6 @@ const CONTENT_JS = path.resolve(__dirname, '../../contentScript.js');
 async function setupPage(page, overrides = {}) {
   const opts = {
     convertOnPaste: false,
-    autoConvert: false,
     autoFormat: true,
     gfm: true,
     theme: 'default',

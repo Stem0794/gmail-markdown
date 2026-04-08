@@ -1,7 +1,6 @@
 (function () {
   const DEFAULTS = {
     convertOnPaste: false,
-    autoConvert: false,
     autoFormat: true,
     gfm: true,
     theme: 'default',
@@ -528,11 +527,7 @@
       }, true);
   }
 
-  function attachSendListener(btn, opts) {
-    if (btn._mdSendAttached) return;
-    btn._mdSendAttached = true;
-    btn.addEventListener('click', () => convertMarkdown(opts), true);
-  }
+
 
   function setupCentralObserver(opts) {
     function scanAndAttach() {
@@ -541,11 +536,6 @@
         attachShortcutListener(body, opts);
         attachPasteListener(body, opts);
       });
-
-      if (opts.autoConvert) {
-        const sendBtns = document.querySelectorAll('div[aria-label^="Send"]');
-        sendBtns.forEach(btn => attachSendListener(btn, opts));
-      }
     }
 
     scanAndAttach();

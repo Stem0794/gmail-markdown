@@ -7,7 +7,6 @@ A Chrome extension that lets you compose Gmail messages in Markdown and convert 
 - **Markdown to Rich Text** — write in Markdown, then press `Ctrl+Shift+M` (or right-click → *Convert Markdown to Rich Text*) to render it as formatted HTML inside the Gmail compose window.
 - **HTML to Markdown** — reverse the conversion with `Ctrl+Shift+H` (or right-click → *Convert HTML to Markdown*).
 - **Auto-convert on paste** — optionally convert pasted Markdown automatically.
-- **Auto-convert on send** — convert just before the message is sent.
 - **GitHub-flavored Markdown** — tables, task lists, strikethrough, and more via the [Marked](https://github.com/markedjs/marked) library.
 - **Emoji shortcodes** — type `:rocket:` or `:heart:` and they become 🚀 and ❤️. Over 1 000 GitHub-style codes are supported. Emoji characters you type directly (e.g. 👍) are left untouched.
 - **Readable links** — `[text](url)` is converted to `text (url)` so recipients see real URLs.
@@ -66,7 +65,6 @@ Click the extension icon → *Options* (or go to `chrome://extensions` → *Deta
 | Option | Description |
 |---|---|
 | Convert on Paste | Auto-convert Markdown when you paste text |
-| Convert on Send | Convert just before the message is sent |
 | GitHub flavored Markdown | Enable GFM extensions (tables, task lists, etc.) |
 | Theme | Choose between **Default** or **Bold** theme style |
 | Custom Shortcut | Override the default `Ctrl+Shift+M` shortcut |
