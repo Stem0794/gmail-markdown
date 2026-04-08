@@ -355,27 +355,11 @@
           deleteBackwards(fullMatch.length);
 
           if (f.cmd === 'code') {
-            const html = `<code style="${INLINE_CODE_STYLE}">${content}</code>`;
+            // Wrap the trailing space in a span with reset styles to prevent
+            // Chrome's contenteditable from carrying forward monospace/code
+            // styles into subsequent text (which distorts later code elements).
+            const html = `<code style="${INLINE_CODE_STYLE}">${content}</code><span style="padding:0;font-family:inherit;color:inherit;background-color:transparent;border-radius:0">\u00A0</span>`;
             document.execCommand('insertHTML', false, html);
-            // Explicitly place cursor outside the <code> element so the browser
-            // doesn't carry forward monospace/padding styles into subsequent text.
-            const codeSel = window.getSelection();
-            if (codeSel.rangeCount) {
-              let cur = codeSel.getRangeAt(0).startContainer;
-              if (cur.nodeType === Node.TEXT_NODE) cur = cur.parentNode;
-              while (cur && cur !== body && cur.tagName !== 'CODE') cur = cur.parentNode;
-              if (cur && cur.tagName === 'CODE') {
-                const space = document.createTextNode('\u00A0');
-                cur.parentNode.insertBefore(space, cur.nextSibling);
-                const r = document.createRange();
-                r.setStartAfter(space);
-                r.collapse(true);
-                codeSel.removeAllRanges();
-                codeSel.addRange(r);
-              } else {
-                document.execCommand('insertText', false, '\u00A0');
-              }
-            }
           } else if (f.cmd === 'emoji') {
             document.execCommand('insertText', false, emojiStr + '\u00A0');
           } else {
