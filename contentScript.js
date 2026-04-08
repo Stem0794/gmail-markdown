@@ -355,7 +355,7 @@
           deleteBackwards(fullMatch.length);
 
           if (f.cmd === 'code') {
-            const html = `<code style="background-color: #2d2d2d; color: #ff6b6b; padding: 2px 6px; border-radius: 4px; font-family: monospace;">${content}</code>\u00A0`;
+            const html = `<code style="${INLINE_CODE_STYLE}">${content}</code>\u00A0`;
             document.execCommand('insertHTML', false, html);
           } else if (f.cmd === 'emoji') {
             document.execCommand('insertText', false, emojiStr + '\u00A0');
@@ -547,8 +547,7 @@
   }
 
   function replaceEmojis(text) {
-    const emojiLib = window.replaceEmojis || (typeof replaceEmojis !== 'undefined' ? replaceEmojis : null);
-    if (typeof emojiLib === 'function') return emojiLib(text);
+    if (typeof window.replaceEmojis === 'function') return window.replaceEmojis(text);
     return text;
   }
 
