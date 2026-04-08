@@ -471,9 +471,26 @@
               codeEl.parentNode.replaceChild(text, codeEl);
             } else {
               const selectedText = sel.toString();
-              const escaped = selectedText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-              const html = `<code style="${INLINE_CODE_STYLE}">${escaped}</code>`;
-              document.execCommand('insertHTML', false, html);
+              // Build the <code> element manually so we can place the cursor
+              // *after* it in a clean text node, preventing style leaking.
+              range.deleteContents();
+              const codeNode = document.createElement('code');
+              codeNode.setAttribute('style', INLINE_CODE_STYLE);
+              codeNode.textContent = selectedText;
+              range.insertNode(codeNode);
+              // Insert a zero-width space after <code> to break style inheritance
+              const breaker = document.createTextNode('\u200B');
+              if (codeNode.nextSibling) {
+                codeNode.parentNode.insertBefore(breaker, codeNode.nextSibling);
+              } else {
+                codeNode.parentNode.appendChild(breaker);
+              }
+              // Place cursor after the breaker so typing starts unstyled
+              const newRange = document.createRange();
+              newRange.setStartAfter(breaker);
+              newRange.collapse(true);
+              sel.removeAllRanges();
+              sel.addRange(newRange);
             }
             return;
           }

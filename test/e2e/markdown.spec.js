@@ -79,9 +79,9 @@ test('Ctrl+E wraps selected text in an inline <code> element', async ({ page }) 
   const html = await page.locator(EDITOR).innerHTML();
   expect(html).toContain('<code');
   expect(html).toContain('hello world');
-  // Browser normalises hex to rgb: #f2f2f2 → rgb(242, 242, 242), #d73a49 → rgb(215, 58, 73)
-  expect(html).toContain('rgb(242, 242, 242)');
-  expect(html).toContain('rgb(215, 58, 73)');
+  // setAttribute keeps raw hex values (no browser RGB normalisation)
+  expect(html).toContain('#f2f2f2');
+  expect(html).toContain('#d73a49');
 });
 
 test('Ctrl+E on already-formatted code removes the formatting', async ({ page }) => {
