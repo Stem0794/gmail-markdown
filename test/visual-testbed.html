@@ -64,10 +64,7 @@
 <div class="composer">
   <div class="header">
     <h2>Mock Gmail Compose Window</h2>
-    <div style="display: flex; gap: 8px;">
-      <div aria-label="Mock Ctrl+E" class="btn" style="background: #333;" role="button">Inline Code (Ctrl+E)</div>
-      <div aria-label="Send" class="btn" role="button" tabindex="0">Send (Convert)</div>
-    </div>
+    <div aria-label="Send" class="btn" role="button" tabindex="0">Send (Convert)</div>
   </div>
   <!-- Using innerText initialization so raw markdown preserves spacing perfectly -->
   <div aria-label="Message Body" contenteditable="true" class="editable" id="editor"></div>
@@ -145,19 +142,6 @@ document.querySelector('div[aria-label="Send"]').addEventListener('click', () =>
         cancelable: true
     });
     document.dispatchEvent(event);
-});
-
-// Manually trigger inline code when clicking the Inline Code (Ctrl+E) button
-document.querySelector('div[aria-label="Mock Ctrl+E"]').addEventListener('click', () => {
-    const event = new KeyboardEvent('keydown', {
-        key: 'e',
-        keyCode: 69,
-        which: 69,
-        ctrlKey: true,
-        bubbles: true,
-        cancelable: true
-    });
-    document.getElementById('editor').dispatchEvent(event);
 });
 </script>
 
