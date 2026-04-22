@@ -81,10 +81,19 @@
     style.textContent = base + (themes[activeTheme] || themes.default);
   }
 
-  function deleteBackwards(count) {
-    for (let i = 0; i < count; i++) {
-      document.execCommand('delete', false, null);
-    }
+  function deletePrecise(container, offset, count) {
+    const sel = window.getSelection();
+    if (!sel) return;
+    const r = document.createRange();
+    const startOffset = Math.max(0, offset - count);
+    r.setStart(container, startOffset);
+    r.setEnd(container, offset);
+    r.deleteContents();
+    
+    // Ensure cursor is collapsed at the point of deletion
+    r.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(r);
   }
 
   function isCursorAtBlockStart(range, block) {
@@ -249,7 +258,7 @@
       // Handle --- + space as horizontal rule
       if (trimmedPrefix === '---') {
         e.preventDefault();
-        deleteBackwards(textBefore.length);
+        deletePrecise(container, offset, textBefore.length);
         document.execCommand('insertHorizontalRule');
         insertLineAfterHR(body);
         return;
@@ -257,7 +266,7 @@
 
       if (/^[\s\u200B\u200C\u200D\uFEFF]*`{3}$/.test(textBefore)) {
         e.preventDefault();
-        deleteBackwards(textBefore.length);
+        deletePrecise(container, offset, textBefore.length);
         insertCodeBlock(body);
         return;
       }
@@ -276,7 +285,7 @@
 
         if (command === 'insertQuoteDiv') {
           e.preventDefault();
-          deleteBackwards(prefixLen);
+          deletePrecise(container, offset, prefixLen);
           // Use formatBlock to wrap the current line in a blockquote, then immediately
           // replace it with a styled <div>. This avoids Gmail's email renderer stripping
           // styles from <blockquote> elements.
@@ -312,7 +321,7 @@
           return;
         } else if (command) {
           e.preventDefault();
-          deleteBackwards(prefixLen);
+          deletePrecise(container, offset, prefixLen);
           document.execCommand(command, false, arg);
           // Add an empty line after the formatted block
           if (command === 'formatBlock') {
@@ -350,7 +359,7 @@
           }
 
           e.preventDefault();
-          deleteBackwards(fullMatch.length);
+          deletePrecise(container, offset, fullMatch.length);
 
           if (f.cmd === 'code') {
             const html = `<code style="${INLINE_CODE_STYLE}">${content}</code>`;
@@ -393,7 +402,7 @@
     if (e.key === 'Enter') {
       if (textBefore.trim() === '---') {
         e.preventDefault();
-        deleteBackwards(textBefore.length);
+        deletePrecise(container, offset, textBefore.length);
         document.execCommand('insertHorizontalRule');
         insertLineAfterHR(body);
         return;
@@ -401,7 +410,7 @@
 
       if (/^[\s\u200B\u200C\u200D\uFEFF]*`{3}$/.test(textBefore)) {
         e.preventDefault();
-        deleteBackwards(textBefore.length);
+        deletePrecise(container, offset, textBefore.length);
         insertCodeBlock(body);
         return;
       }
@@ -513,7 +522,7 @@
         const text = container.textContent;
         if (text.slice(offset - 5, offset) === '/note') {
           e.preventDefault();
-          deleteBackwards(5);
+          deletePrecise(container, offset, 5);
           const html = '<div class="md-callout" style="background:#f2f2f2;padding:8px;border-radius:4px;margin:8px 0;">Important info</div>';
           document.execCommand('insertHTML', false, html);
         }
