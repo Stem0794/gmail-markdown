@@ -158,6 +158,37 @@
     }
   }
 
+  function handleCodeBlockMacro(e, container, offset, textBefore, body) {
+    e.preventDefault();
+    setTimeout(() => {
+      const s = window.getSelection();
+      if (!s || !s.rangeCount) return;
+      const r = s.getRangeAt(0);
+      let curCont = r.startContainer;
+      let curOff = r.startOffset;
+
+      if (curCont.nodeType !== Node.TEXT_NODE) {
+        if (curOff > 0 && curCont.childNodes[curOff - 1] && curCont.childNodes[curOff - 1].nodeType === Node.TEXT_NODE) {
+          curCont = curCont.childNodes[curOff - 1];
+          curOff = curCont.textContent.length;
+        }
+      }
+
+      if (curCont.nodeType === Node.TEXT_NODE) {
+        const curText = curCont.textContent.slice(0, curOff);
+        // Clean out any pending OS/IME string of backticks (like OSX smart composition)
+        if (/^[\s\u200B\u200C\u200D\uFEFF]*`+$/.test(curText)) {
+          deletePrecise(curCont, curOff, curText.length);
+        } else {
+          try { deletePrecise(container, offset, textBefore.length); } catch (err) {}
+        }
+      } else {
+        try { deletePrecise(container, offset, textBefore.length); } catch (err) {}
+      }
+      insertCodeBlock(body);
+    }, 10);
+  }
+
   function insertLineAfterHR(body) {
     const hrs = body.querySelectorAll('hr');
     if (!hrs.length) return;
@@ -265,9 +296,7 @@
       }
 
       if (/^[\s\u200B\u200C\u200D\uFEFF]*`{3}$/.test(textBefore)) {
-        e.preventDefault();
-        deletePrecise(container, offset, textBefore.length);
-        insertCodeBlock(body);
+        handleCodeBlockMacro(e, container, offset, textBefore, body);
         return;
       }
 
@@ -409,9 +438,7 @@
       }
 
       if (/^[\s\u200B\u200C\u200D\uFEFF]*`{3}$/.test(textBefore)) {
-        e.preventDefault();
-        deletePrecise(container, offset, textBefore.length);
-        insertCodeBlock(body);
+        handleCodeBlockMacro(e, container, offset, textBefore, body);
         return;
       }
 
