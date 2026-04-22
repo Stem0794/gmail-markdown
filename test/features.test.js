@@ -9,6 +9,7 @@ function loadScript(html = '<div aria-label="Message Body" contenteditable="true
   global.Node = dom.window.Node;
   global.MutationObserver = class { constructor(cb){} observe(){} disconnect(){} };
   global.chrome = { runtime: { getURL: p => p }, storage: { sync: { get: (_d, cb) => cb({}) } } };
+  delete require.cache[require.resolve('../contentScript.js')];
   return require('../contentScript.js');
 }
 
@@ -71,4 +72,57 @@ describe('Extension features', function() {
     assert.notMatch(src, /style[^='"]*float\s*:/i, 'Should not use float in inline styles');
   });
 
+  it('applyTheme does not include blockquote rules (to avoid list subitem styling conflicts)', function() {
+    const script = loadScript();
+    script.applyTheme('default');
+    const style = document.getElementById('md-theme-style');
+    assert.notInclude(style.textContent, 'blockquote {');
+    
+    script.applyTheme('bold');
+    assert.notInclude(style.textContent, 'blockquote {');
+  });
+
+  it('gmailifyHtml implements text wrapping in code blocks', function() {
+    const { gmailifyHtml } = loadScript();
+    const input = '<pre><code>long_unbroken_text_that_should_wrap</code></pre>';
+    const output = gmailifyHtml(input);
+    assert.include(output, 'word-break:break-word');
+    assert.include(output, 'overflow-wrap:anywhere');
+    assert.include(output, 'overflow-x:auto');
+  });
+
+  it('captures Tab key in lists and prevents default behavior', function() {
+    // We need to trigger the window listener added in the chrome.storage callback
+    const html = `
+      <div aria-label="Message Body" contenteditable="true">
+        <ul>
+          <li><span id="target">Item</span></li>
+        </ul>
+      </div>
+    `;
+    loadScript(html);
+    
+    const target = document.getElementById('target');
+    const sel = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(target);
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    // Mock execCommand
+    let commandCalled = null;
+    document.execCommand = (cmd) => { commandCalled = cmd; };
+
+    const event = new window.KeyboardEvent('keydown', {
+      key: 'Tab',
+      bubbles: true,
+      cancelable: true
+    });
+    
+    // Dispatching on window since the listener is on window (capturing)
+    window.dispatchEvent(event);
+
+    assert.isTrue(event.defaultPrevented, 'Tab event should be prevented in list');
+    assert.equal(commandCalled, 'indent');
+  });
 });

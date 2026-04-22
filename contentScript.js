@@ -12,8 +12,8 @@
   const SELECTOR = 'div[aria-label="Message Body"][contenteditable="true"]';
 
   const BLOCKQUOTE_INLINE_STYLE = 'border-left:4px solid #ccc;padding-left:24px !important;color:#555;margin:0.5em 0;background:none;';
-  const PRE_WRAPPER_STYLE = 'background-color:#f7f6f3;border-radius:3px;padding:12px 16px;margin:1em 0;';
-  const PRE_CODE_STYLE = 'font-family:SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;font-size:0.85em;white-space:pre-wrap;color:#333;margin:0;padding:0;display:block;';
+  const PRE_WRAPPER_STYLE = 'background-color:#f7f6f3;border-radius:3px;padding:12px 16px;margin:1em 0;overflow-x:auto;max-width:100%;';
+  const PRE_CODE_STYLE = 'font-family:SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;font-size:0.85em;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;color:#333;margin:0;padding:0;display:block;';
   const INLINE_CODE_STYLE = 'background-color:#f2f2f2;color:#d73a49;padding:2px 4px;border-radius:3px;font-family:monospace;';
 
   const AUTO_FORMATS = [
@@ -63,7 +63,6 @@
         ${sel} h1 { font-size: 1.4em !important; font-weight: bold !important; margin: 0.6em 0 !important; }
         ${sel} h2 { font-size: 1.2em !important; font-weight: bold !important; margin: 0.5em 0 !important; }
         ${sel} h3 { font-size: 1.1em !important; font-weight: bold !important; margin: 0.4em 0 !important; }
-        ${sel} blockquote { border-left: 4px solid #ccc !important; padding-left: 24px !important; color: #555 !important; margin: 0.5em 0 !important; background: none !important; }
         ${sel} table { border-collapse: collapse !important; border-spacing: 0 !important; margin: 0.5em 0 !important; }
         ${sel} th, ${sel} td { border: 1px solid #ccc !important; padding: 6px 10px !important; text-align: left !important; }
         ${sel} th { background-color: #f8f9fa !important; font-weight: bold !important; }
@@ -72,7 +71,6 @@
         ${sel} h1 { font-size: 1.4em !important; font-weight: bold !important; text-transform: uppercase !important; margin: 0.6em 0 !important; }
         ${sel} h2 { font-size: 1.2em !important; font-weight: bold !important; text-transform: uppercase !important; margin: 0.5em 0 !important; }
         ${sel} h3 { font-size: 1.1em !important; font-weight: bold !important; text-transform: uppercase !important; margin: 0.4em 0 !important; }
-        ${sel} blockquote { border-left: 4px solid #ccc !important; padding-left: 24px !important; color: #555 !important; margin: 0.5em 0 !important; background: none !important; }
         ${sel} table { border-collapse: collapse !important; border-spacing: 0 !important; margin: 0.5em 0 !important; }
         ${sel} th, ${sel} td { border: 1px solid #ccc !important; padding: 6px 10px !important; text-align: left !important; }
         ${sel} th { background-color: #f8f9fa !important; font-weight: bold !important; text-transform: uppercase !important; }
@@ -647,6 +645,32 @@
           convertMarkdown(opts);
         }
       });
+
+      // Capture Tab early before Gmail's focus navigation can intercept it 
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Tab') {
+          const sel = window.getSelection();
+          if (sel && sel.rangeCount) {
+            let container = sel.getRangeAt(0).startContainer;
+            if (container.nodeType === Node.TEXT_NODE) container = container.parentNode;
+            
+            // First check if we are inside a contenteditable message body
+            if (container.closest && container.closest(SELECTOR)) {
+              const li = container.closest('li');
+              if (li) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                if (e.shiftKey) {
+                  document.execCommand('outdent', false, null);
+                } else {
+                  document.execCommand('indent', false, null);
+                }
+              }
+            }
+          }
+        }
+      }, true); // useCapture: true is critical here
     });
   }
 
