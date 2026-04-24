@@ -142,7 +142,7 @@
     // Inner <pre> handles whitespace preservation and native Enter behaviour.
     const wrapperStyle = PRE_WRAPPER_STYLE;
     const preStyle = PRE_CODE_STYLE;
-    const html = `<div data-md-code="1" style="${wrapperStyle}"><pre style="${preStyle}"><br></pre></div><div><br></div>`;
+    const html = `<div data-md-code="1" style="${wrapperStyle}"><pre style="${preStyle}"><br></pre></div><div>\u200B<br></div>`;
     document.execCommand('insertHTML', false, html);
 
     // Place cursor inside the <pre> block
@@ -202,6 +202,52 @@
     const sel = window.getSelection();
     sel.removeAllRanges();
     sel.addRange(newRange);
+  }
+
+  function splitBlockAtCursor(body) {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    let block = range.startContainer;
+    if (block.nodeType === Node.TEXT_NODE) block = block.parentNode;
+    while (block && block !== body && !block.matches('div, p, h1, h2, h3, h4, h5, h6, li, blockquote, pre, [data-md-code]')) {
+      block = block.parentNode;
+    }
+    if (block && block !== body) {
+      const testRange = document.createRange();
+      testRange.setStart(block, 0);
+      testRange.setEnd(range.startContainer, range.startOffset);
+      const beforeFragment = testRange.cloneContents();
+      
+      if (beforeFragment.querySelector('br') || beforeFragment.textContent.trim().length > 0) {
+        const afterRange = document.createRange();
+        afterRange.setStart(range.startContainer, range.startOffset);
+        afterRange.setEnd(block, block.childNodes.length);
+        const afterContent = afterRange.extractContents();
+        
+        let lastNode = block.lastChild;
+        while (lastNode && lastNode.nodeType === Node.TEXT_NODE && lastNode.textContent === '') {
+          const prev = lastNode.previousSibling;
+          block.removeChild(lastNode);
+          lastNode = prev;
+        }
+        if (lastNode && lastNode.nodeName === 'BR') {
+          block.removeChild(lastNode);
+        }
+        
+        const newBlock = document.createElement('div');
+        newBlock.appendChild(afterContent);
+        if (!newBlock.hasChildNodes()) newBlock.innerHTML = '<br>';
+        
+        block.parentNode.insertBefore(newBlock, block.nextSibling);
+        
+        const newSelRange = document.createRange();
+        newSelRange.setStart(newBlock, 0);
+        newSelRange.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(newSelRange);
+      }
+    }
   }
 
   function applyAutoFormat(e, body) {
@@ -315,6 +361,7 @@
         if (command === 'insertQuoteDiv') {
           e.preventDefault();
           deletePrecise(container, offset, prefixLen);
+          splitBlockAtCursor(body);
           // Use formatBlock to wrap the current line in a blockquote, then immediately
           // replace it with a styled <div>. This avoids Gmail's email renderer stripping
           // styles from <blockquote> elements.
@@ -351,6 +398,9 @@
         } else if (command) {
           e.preventDefault();
           deletePrecise(container, offset, prefixLen);
+          if (command === 'insertUnorderedList' || command === 'insertOrderedList' || command === 'formatBlock') {
+            splitBlockAtCursor(body);
+          }
           document.execCommand(command, false, arg);
           // Add an empty line after the formatted block
           if (command === 'formatBlock') {
@@ -459,13 +509,19 @@
           const exitTarget = (preEl.parentElement && preEl.parentElement.getAttribute('data-md-code'))
             ? preEl.parentElement : preEl;
           let afterEl = exitTarget.nextSibling;
-          if (!afterEl) {
+          if (!afterEl || afterEl.tagName !== 'DIV') {
             afterEl = document.createElement('div');
-            afterEl.innerHTML = '<br>';
+            afterEl.innerHTML = '\u200B<br>';
             exitTarget.parentNode.insertBefore(afterEl, exitTarget.nextSibling);
+          } else if (afterEl.innerHTML === '<br>') {
+            afterEl.innerHTML = '\u200B<br>';
           }
           const exitRange = document.createRange();
-          exitRange.setStart(afterEl, 0);
+          if (afterEl.firstChild && afterEl.firstChild.nodeType === Node.TEXT_NODE) {
+            exitRange.setStart(afterEl.firstChild, afterEl.firstChild.textContent.length);
+          } else {
+            exitRange.setStart(afterEl, 0);
+          }
           exitRange.collapse(true);
           const exitSel = window.getSelection();
           exitSel.removeAllRanges();
