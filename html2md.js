@@ -23,7 +23,9 @@
         range.collapse(false);
       } else {
         var md = td.turndown(emailBody.innerHTML);
-        emailBody.innerText = md;
+        if (emailBody) {
+          emailBody.innerText = md;
+        }
       }
 
       emailBody.dispatchEvent(new Event('input', { bubbles: true }));

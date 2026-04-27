@@ -428,7 +428,8 @@
         const match = textBefore.match(f.reg);
         if (match) {
           const fullMatch = match[0];
-          const content = match[2] || match[1] || fullMatch.replace(/^(\*\*|__|~~|\*|_|`)|(\*\*|__|~~|\*|_|`)$/g, '');
+          // Extract content: use first capture group if available, otherwise strip formatting chars
+          const content = match[1] ? match[1] : fullMatch.replace(/^(\*\*|__|~~|\*|_|`)|(\*\*|__|~~|\*|_|`)$/g, '');
 
           let emojiStr = null;
           if (f.cmd === 'emoji') {

@@ -3,8 +3,8 @@
 
   var SELECTOR = 'div[aria-label="Message Body"][contenteditable="true"]';
   var BLOCKQUOTE_INLINE_STYLE = 'border-left:4px solid #ccc;padding-left:24px !important;color:#555;margin:0.5em 0;background:none;';
-  var PRE_WRAPPER_STYLE = 'background-color:#f7f6f3;border-radius:3px;padding:12px 16px;margin:1em 0;';
-  var PRE_CODE_STYLE = 'font-family:SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;font-size:0.85em;white-space:pre-wrap;color:#333;margin:0;padding:0;display:block;';
+  var PRE_WRAPPER_STYLE = 'background-color:#f7f6f3;border-radius:3px;padding:12px 16px;margin:1em 0;overflow-x:auto;max-width:100%;';
+  var PRE_CODE_STYLE = 'font-family:SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;font-size:0.85em;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;color:#333;margin:0;padding:0;display:block;';
   var INLINE_CODE_STYLE = 'background-color:#f2f2f2;color:#d73a49;padding:2px 4px;border-radius:3px;font-family:monospace;';
   var MAX_ATTEMPTS = 50;
   var attempts = 0;
