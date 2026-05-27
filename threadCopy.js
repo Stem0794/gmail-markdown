@@ -113,6 +113,33 @@
       .trim();
   }
 
+  // --- Thread expansion ---
+
+  function isCollapsed(gs) {
+    // A message is collapsed when its body container is hidden or absent
+    const adn = gs.querySelector('.adn');
+    if (!adn) return !gs.querySelector('.a3s');
+    const cs = window.getComputedStyle(adn);
+    return cs.display === 'none' || cs.visibility === 'hidden';
+  }
+
+  async function expandAll() {
+    const toExpand = Array.from(document.querySelectorAll('.gs')).filter(isCollapsed);
+    if (!toExpand.length) return;
+
+    toExpand.forEach(function (gs) {
+      // Gmail expand trigger: the summary header row inside the collapsed message.
+      // Try several known Gmail class names in priority order.
+      const trigger = gs.querySelector('.aio')
+        || gs.querySelector('.gE')
+        || gs.querySelector('.ade');
+      if (trigger) trigger.click();
+    });
+
+    // Give Gmail time to show the message bodies (CSS transition + DOM update)
+    await new Promise(function (resolve) { setTimeout(resolve, 600); });
+  }
+
   // --- Thread extraction ---
 
   function extractThread() {
@@ -227,12 +254,19 @@
     });
 
     btn.addEventListener('click', async function () {
+      const origText = btn.textContent;
+      btn.textContent = 'Expanding thread…';
+      btn.disabled = true;
       try {
+        await expandAll();
         const md = extractThread();
         await copyToClipboard(md);
+        btn.disabled = false;
         showFeedback(btn, true);
       } catch (err) {
         console.error('[gmail-md] Copy thread failed:', err);
+        btn.disabled = false;
+        btn.textContent = origText;
         showFeedback(btn, false);
       }
     });
