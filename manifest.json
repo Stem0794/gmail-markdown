@@ -3,7 +3,7 @@
   "name": "Markdown for Gmail",
   "version": "1.4.1",
   "description": "Write Gmail messages in Markdown and convert them to rich text via right-click or shortcut.",
-  "permissions": ["contextMenus", "scripting", "activeTab", "storage"],
+  "permissions": ["contextMenus", "scripting", "activeTab", "storage", "clipboardWrite"],
   "host_permissions": ["https://mail.google.com/*"],
   "background": {
     "service_worker": "background.js"
@@ -12,7 +12,7 @@
   "content_scripts": [
     {
       "matches": ["https://mail.google.com/*"],
-      "js": ["marked.min.js", "emoji.js", "contentScript.js"],
+      "js": ["marked.min.js", "emoji.js", "contentScript.js", "threadCopy.js"],
       "run_at": "document_idle"
     }
   ],
