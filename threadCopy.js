@@ -262,6 +262,7 @@
         const md = extractThread();
         await copyToClipboard(md);
         btn.disabled = false;
+        btn.textContent = origText;
         showFeedback(btn, true);
       } catch (err) {
         console.error('[gmail-md] Copy thread failed:', err);
@@ -272,6 +273,10 @@
     });
 
     subjectEl.insertAdjacentElement('afterend', btn);
+  }
+
+  if (typeof module !== 'undefined') {
+    module.exports = { htmlToMarkdown, extractThread, isCollapsed, injectButton };
   }
 
   const observer = new MutationObserver(function () {
