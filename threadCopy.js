@@ -207,6 +207,10 @@
   // --- Button injection ---
 
   function showFeedback(btn, success) {
+    // Freeze the rendered width before swapping text. Without this, the button
+    // shrinks when showing "Copied!" and Gmail's sibling label chips (External,
+    // Inbox, etc.) reflow onto the same line as the subject heading.
+    btn.style.width = btn.offsetWidth + 'px';
     const origText = btn.textContent;
     const origBg = btn.style.background;
     const origBorder = btn.style.borderColor;
@@ -217,6 +221,7 @@
       btn.textContent = origText;
       btn.style.background = origBg;
       btn.style.borderColor = origBorder;
+      btn.style.width = '';
     }, 2000);
   }
 
