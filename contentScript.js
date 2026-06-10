@@ -15,6 +15,21 @@
   const PRE_WRAPPER_STYLE = 'background-color:#f7f6f3;border-radius:3px;padding:12px 16px;margin:1em 0;overflow-x:auto;max-width:100%;';
   const PRE_CODE_STYLE = 'font-family:SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;font-size:0.85em;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;color:#333;margin:0;padding:0;display:block;';
   const INLINE_CODE_STYLE = 'background-color:#f2f2f2;color:#d73a49;padding:2px 4px;border-radius:3px;font-family:monospace;';
+  const CALLOUT_INLINE_STYLE = 'background-color:#f2f2f2;padding:8px;border-radius:4px;margin:8px 0;';
+
+  const SLASH_COMMANDS = [
+    { id: 'quote', label: 'Quote', description: 'Insert a quoted block', aliases: ['blockquote'] },
+    { id: 'note', label: 'Note', description: 'Insert a gray callout for important information', aliases: ['callout'] },
+    { id: 'h1', label: 'H1', description: 'Insert a large heading', aliases: ['title', 'heading1'] },
+    { id: 'h2', label: 'H2', description: 'Insert a section heading', aliases: ['heading', 'heading2'] },
+    { id: 'h3', label: 'H3', description: 'Insert a smaller heading', aliases: ['subheading', 'heading3'] },
+    { id: 'bullets', label: 'Bulleted list', description: 'Insert a bullet list', aliases: ['bullet', 'unordered', 'ul'] },
+    { id: 'numbered', label: 'Numbered list', description: 'Insert a numbered list', aliases: ['number', 'ordered', 'ol'] },
+    { id: 'code', label: 'Code block', description: 'Insert a multiline code block', aliases: ['codeblock', 'pre'] },
+    { id: 'divider', label: 'Divider', description: 'Insert a horizontal rule', aliases: ['horizontal', 'rule', 'hr'] }
+  ];
+
+  let slashMenuState = null;
 
   const AUTO_FORMATS = [
     { reg: /(\*\*|__)(.+?)\1$/, cmd: 'bold' },
@@ -27,7 +42,7 @@
   function getActiveEditable() {
     const active = document.activeElement;
     if (active && active.matches && active.matches(SELECTOR)) return active;
-    
+
     // Fallback based on text selection
     const sel = window.getSelection();
     if (sel && sel.rangeCount) {
@@ -37,13 +52,56 @@
         node = node.parentNode;
       }
     }
-    
+
     // Absolute fallback: first editor on page
     return document.querySelector(SELECTOR);
   }
 
   function convertLinksToReadable(text) {
     return text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 ($2)');
+  }
+
+  function escapeHtml(text) {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function isSafeLinkUrl(url) {
+    const normalized = String(url || '').trim().replace(/[\u0000-\u0020\u007F]+/g, '');
+    const scheme = normalized.match(/^([a-z][a-z0-9+.-]*):/i);
+    return !scheme || ['http', 'https', 'mailto'].includes(scheme[1].toLowerCase());
+  }
+
+  function createMarkedOptions(markedLib, gfm) {
+    const options = { gfm };
+    if (!markedLib || typeof markedLib.Renderer !== 'function') return options;
+
+    const renderer = new markedLib.Renderer();
+    renderer.html = (html) => {
+      const raw = typeof html === 'string' ? html : (html && html.text) || '';
+      return escapeHtml(raw);
+    };
+    renderer.link = function (linkOrHref, title, text) {
+      const isToken = linkOrHref && typeof linkOrHref === 'object';
+      const href = isToken ? linkOrHref.href : linkOrHref;
+      const linkTitle = isToken ? linkOrHref.title : title;
+      const label = isToken
+        ? (linkOrHref.tokens && this.parser
+          ? this.parser.parseInline(linkOrHref.tokens)
+          : escapeHtml(linkOrHref.text || href || ''))
+        : (text || escapeHtml(href || ''));
+
+      if (!isSafeLinkUrl(href)) return label;
+
+      const titleAttribute = linkTitle ? ` title="${escapeHtml(linkTitle)}"` : '';
+      return `<a href="${escapeHtml(href)}"${titleAttribute}>${label}</a>`;
+    };
+    options.renderer = renderer;
+    return options;
   }
 
   function applyTheme(theme) {
@@ -81,6 +139,409 @@
     style.textContent = base + (themes[activeTheme] || themes.default);
   }
 
+  function ensureSlashMenuStyles() {
+    if (document.getElementById('md-slash-menu-style')) return;
+
+    const style = document.createElement('style');
+    style.id = 'md-slash-menu-style';
+    style.textContent = `
+      [data-md-slash-menu="1"] {
+        position: fixed;
+        z-index: 2147483647;
+        width: 260px;
+        max-height: 240px;
+        overflow-y: auto;
+        padding: 4px;
+        background: #fff;
+        border: 1px solid #dadce0;
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(60, 64, 67, 0.24);
+        box-sizing: border-box;
+        font-family: Arial, sans-serif;
+      }
+      [data-md-slash-command] {
+        display: block;
+        width: 100%;
+        padding: 8px 10px;
+        color: #202124;
+        background: transparent;
+        border: 0;
+        border-radius: 5px;
+        box-sizing: border-box;
+        cursor: pointer;
+        text-align: left;
+      }
+      [data-md-slash-command][aria-selected="true"],
+      [data-md-slash-command]:hover {
+        background: #e8f0fe;
+      }
+      [data-md-slash-command][aria-selected="true"] {
+        color: #174ea6;
+        box-shadow: inset 3px 0 #1a73e8;
+      }
+      [data-md-slash-command] strong {
+        display: block;
+        font-size: 14px;
+        line-height: 20px;
+      }
+      [data-md-slash-command] span {
+        display: block;
+        color: #5f6368;
+        font-size: 12px;
+        line-height: 18px;
+      }
+    `;
+    document.documentElement.appendChild(style);
+  }
+
+  function closeSlashCommandMenu(body) {
+    if (!slashMenuState || (body && slashMenuState.body !== body)) return;
+    if (slashMenuState.menu.parentNode) {
+      slashMenuState.menu.parentNode.removeChild(slashMenuState.menu);
+    }
+    slashMenuState = null;
+  }
+
+  function getSlashCommandContext(body) {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) return null;
+
+    const caretRange = selection.getRangeAt(0);
+    if (!body.contains(caretRange.startContainer)) return null;
+
+    let block = caretRange.startContainer;
+    if (block.nodeType === Node.TEXT_NODE) block = block.parentNode;
+    while (block && block !== body && block.parentNode !== body) {
+      block = block.parentNode;
+    }
+    if (!block) return null;
+
+    const commandRange = document.createRange();
+    if (block === body && caretRange.startContainer.nodeType === Node.TEXT_NODE) {
+      commandRange.setStart(caretRange.startContainer, 0);
+    } else {
+      commandRange.setStart(block, 0);
+    }
+    commandRange.setEnd(caretRange.startContainer, caretRange.startOffset);
+
+    const prefix = commandRange.toString().replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+    const match = prefix.match(/^\/([a-z0-9-]*)$/i);
+    if (!match) return null;
+
+    return {
+      body,
+      block,
+      commandRange: commandRange.cloneRange(),
+      caretRange: caretRange.cloneRange(),
+      query: match[1].toLowerCase()
+    };
+  }
+
+  function positionSlashCommandMenu(state) {
+    const caretRect = state.context.caretRange.getBoundingClientRect();
+    const editorRect = state.body.getBoundingClientRect();
+    const left = caretRect.left || editorRect.left || 8;
+    const anchorTop = caretRect.top || editorRect.top || 8;
+    const anchorBottom = caretRect.bottom || editorRect.top + 24 || 24;
+    const maxLeft = Math.max(8, window.innerWidth - state.menu.offsetWidth - 8);
+    const below = anchorBottom + 6;
+    const above = Math.max(8, anchorTop - state.menu.offsetHeight - 6);
+    const top = below + state.menu.offsetHeight <= window.innerHeight - 8 ? below : above;
+
+    state.menu.style.left = `${Math.max(8, Math.min(left, maxLeft))}px`;
+    state.menu.style.top = `${Math.max(8, top)}px`;
+  }
+
+  function setSlashMenuSelection(index) {
+    if (!slashMenuState || slashMenuState.commands.length === 0) return;
+    const count = slashMenuState.commands.length;
+    slashMenuState.selectedIndex = (index + count) % count;
+    const items = slashMenuState.menu.querySelectorAll('[data-md-slash-command]');
+    let selectedItem = null;
+    items.forEach((item, itemIndex) => {
+      const isSelected = itemIndex === slashMenuState.selectedIndex;
+      item.setAttribute('aria-selected', itemIndex === slashMenuState.selectedIndex ? 'true' : 'false');
+      if (isSelected) selectedItem = item;
+    });
+
+    if (!selectedItem) return;
+    slashMenuState.menu.setAttribute('aria-activedescendant', selectedItem.id);
+
+    const visibleTop = slashMenuState.menu.scrollTop;
+    const visibleBottom = visibleTop + slashMenuState.menu.clientHeight;
+    const itemTop = selectedItem.offsetTop;
+    const itemBottom = itemTop + selectedItem.offsetHeight;
+
+    if (itemTop < visibleTop) {
+      slashMenuState.menu.scrollTop = itemTop;
+    } else if (itemBottom > visibleBottom) {
+      slashMenuState.menu.scrollTop = itemBottom - slashMenuState.menu.clientHeight;
+    }
+  }
+
+  function renderSlashCommandMenu(state) {
+    state.menu.replaceChildren();
+
+    state.commands.forEach((command, index) => {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.id = `md-slash-option-${command.id}`;
+      item.setAttribute('role', 'option');
+      item.setAttribute('data-md-slash-command', command.id);
+      item.setAttribute('aria-selected', index === state.selectedIndex ? 'true' : 'false');
+
+      const label = document.createElement('strong');
+      label.textContent = command.label;
+      const description = document.createElement('span');
+      description.textContent = command.description;
+      item.append(label, description);
+      state.menu.appendChild(item);
+    });
+
+    const selectedItem = state.menu.querySelector('[aria-selected="true"]');
+    if (selectedItem) {
+      state.menu.setAttribute('aria-activedescendant', selectedItem.id);
+    }
+  }
+
+  function createEmptySlashBlock(tagName) {
+    const node = document.createElement(tagName);
+    node.appendChild(document.createElement('br'));
+    return { node, caretTarget: node, caretOffset: 0 };
+  }
+
+  function createSlashCommandBlock(commandId) {
+    if (commandId === 'quote') {
+      const quote = document.createElement('div');
+      quote.setAttribute('style', BLOCKQUOTE_INLINE_STYLE);
+      quote.setAttribute('data-md-quote', '1');
+      const space = document.createTextNode('\u00A0');
+      quote.appendChild(space);
+      return { node: quote, caretTarget: space, caretOffset: 1 };
+    }
+
+    if (commandId === 'note') {
+      const callout = document.createElement('div');
+      callout.className = 'md-callout';
+      callout.setAttribute('style', CALLOUT_INLINE_STYLE);
+      callout.textContent = 'Important info';
+      return {
+        node: callout,
+        caretTarget: callout.firstChild,
+        caretOffset: callout.textContent.length
+      };
+    }
+
+    if (commandId === 'bullets' || commandId === 'numbered') {
+      const list = document.createElement(commandId === 'bullets' ? 'ul' : 'ol');
+      const item = document.createElement('li');
+      item.appendChild(document.createElement('br'));
+      list.appendChild(item);
+      return { node: list, caretTarget: item, caretOffset: 0 };
+    }
+
+    if (commandId === 'code') {
+      const wrapper = document.createElement('div');
+      wrapper.setAttribute('data-md-code', '1');
+      wrapper.setAttribute('style', PRE_WRAPPER_STYLE);
+      const pre = document.createElement('pre');
+      pre.setAttribute('style', PRE_CODE_STYLE);
+      pre.appendChild(document.createElement('br'));
+      wrapper.appendChild(pre);
+      return { node: wrapper, caretTarget: pre, caretOffset: 0 };
+    }
+
+    if (commandId === 'divider') {
+      return { node: document.createElement('hr'), focusTrailingLine: true };
+    }
+
+    return null;
+  }
+
+  function applySlashHeadingCommand(commandId, context) {
+    closeSlashCommandMenu();
+
+    const range = context.commandRange.cloneRange();
+    range.deleteContents();
+    range.collapse(true);
+
+    const selection = window.getSelection();
+    context.body.focus();
+    const marker = document.createElement('span');
+    marker.setAttribute('data-md-empty-anchor', '1');
+    marker.textContent = '\u200B';
+    range.insertNode(marker);
+
+    const markerRange = document.createRange();
+    markerRange.setStart(marker.firstChild, marker.textContent.length);
+    markerRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(markerRange);
+
+    document.execCommand('formatBlock', false, commandId.toUpperCase());
+
+    let heading = marker.closest(commandId);
+    marker.remove();
+    if (heading && !heading.hasChildNodes()) heading.appendChild(document.createElement('br'));
+
+    if (heading && heading !== context.body) {
+      const trailingLine = document.createElement('div');
+      trailingLine.innerHTML = '<br>';
+      heading.parentNode.insertBefore(trailingLine, heading.nextSibling);
+
+      const headingRange = document.createRange();
+      headingRange.setStart(heading, 0);
+      headingRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(headingRange);
+    }
+
+    context.body.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  function applySlashCommand(commandId) {
+    if (!slashMenuState) return;
+
+    const state = slashMenuState;
+    const context = state.context;
+    if (/^h[1-3]$/.test(commandId)) {
+      applySlashHeadingCommand(commandId, context);
+      return;
+    }
+
+    const commandBlock = createSlashCommandBlock(commandId);
+    if (!commandBlock || !context.body.contains(context.commandRange.commonAncestorContainer)) {
+      closeSlashCommandMenu();
+      return;
+    }
+    const commandNode = commandBlock.node;
+
+    closeSlashCommandMenu();
+
+    const range = context.commandRange.cloneRange();
+    range.deleteContents();
+
+    const reusableBlock = context.block !== context.body &&
+      context.block.parentNode &&
+      context.body.contains(context.block) &&
+      context.block.textContent.replace(/[\u200B\u200C\u200D\uFEFF]/g, '').trim() === '';
+
+    if (reusableBlock) {
+      context.block.parentNode.replaceChild(commandNode, context.block);
+    } else {
+      range.insertNode(commandNode);
+    }
+
+    const trailingLine = document.createElement('div');
+    trailingLine.innerHTML = '<br>';
+    commandNode.parentNode.insertBefore(trailingLine, commandNode.nextSibling);
+
+    const selection = window.getSelection();
+    const nextRange = document.createRange();
+    if (commandBlock.focusTrailingLine) {
+      nextRange.setStart(trailingLine, 0);
+    } else if (commandBlock.caretTarget) {
+      nextRange.setStart(commandBlock.caretTarget, commandBlock.caretOffset || 0);
+    } else {
+      nextRange.selectNodeContents(commandNode);
+      nextRange.collapse(false);
+    }
+    nextRange.collapse(true);
+    context.body.focus();
+    selection.removeAllRanges();
+    selection.addRange(nextRange);
+    context.body.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  function updateSlashCommandMenu(body) {
+    const context = getSlashCommandContext(body);
+    if (!context) {
+      closeSlashCommandMenu(body);
+      return;
+    }
+
+    const commands = SLASH_COMMANDS
+      .map((command, originalIndex) => {
+        const label = command.label.toLowerCase();
+        const aliases = command.aliases || [];
+        let score = -1;
+
+        if (context.query === '') score = originalIndex;
+        else if (command.id === context.query) score = 0;
+        else if (label === context.query) score = 1;
+        else if (aliases.includes(context.query)) score = 2;
+        else if (command.id.startsWith(context.query)) score = 3;
+        else if (label.startsWith(context.query)) score = 4;
+        else if (aliases.some(alias => alias.startsWith(context.query))) score = 5;
+
+        return { command, originalIndex, score };
+      })
+      .filter(result => result.score >= 0)
+      .sort((a, b) => a.score - b.score || a.originalIndex - b.originalIndex)
+      .map(result => result.command);
+    if (commands.length === 0) {
+      closeSlashCommandMenu(body);
+      return;
+    }
+
+    ensureSlashMenuStyles();
+    let menu = slashMenuState && slashMenuState.body === body
+      ? slashMenuState.menu
+      : null;
+    if (!menu) {
+      closeSlashCommandMenu();
+      menu = document.createElement('div');
+      menu.setAttribute('data-md-slash-menu', '1');
+      menu.setAttribute('role', 'listbox');
+      menu.setAttribute('aria-label', 'Markdown commands');
+      menu.addEventListener('mousedown', (event) => event.preventDefault());
+      menu.addEventListener('click', (event) => {
+        const item = event.target.closest('[data-md-slash-command]');
+        if (item) applySlashCommand(item.getAttribute('data-md-slash-command'));
+      });
+      document.body.appendChild(menu);
+    }
+
+    slashMenuState = {
+      body,
+      menu,
+      context,
+      commands,
+      selectedIndex: 0
+    };
+    renderSlashCommandMenu(slashMenuState);
+    positionSlashCommandMenu(slashMenuState);
+  }
+
+  function handleSlashCommandKeydown(event, body) {
+    if (!slashMenuState || slashMenuState.body !== body) return false;
+
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      event.stopPropagation();
+      const direction = event.key === 'ArrowDown' ? 1 : -1;
+      setSlashMenuSelection(slashMenuState.selectedIndex + direction);
+      return true;
+    }
+
+    if (event.key === 'Enter' || event.key === 'Tab') {
+      event.preventDefault();
+      event.stopPropagation();
+      const selected = slashMenuState.commands[slashMenuState.selectedIndex];
+      if (selected) applySlashCommand(selected.id);
+      return true;
+    }
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      closeSlashCommandMenu(body);
+      return true;
+    }
+
+    return false;
+  }
+
   function deletePrecise(container, offset, count) {
     const sel = window.getSelection();
     if (!sel) return;
@@ -89,7 +550,7 @@
     r.setStart(container, startOffset);
     r.setEnd(container, offset);
     r.deleteContents();
-    
+
     // Ensure cursor is collapsed at the point of deletion
     r.collapse(true);
     sel.removeAllRanges();
@@ -102,6 +563,28 @@
       testRange.setStart(block, 0);
       testRange.setEnd(range.startContainer, range.startOffset);
       return testRange.toString().length === 0;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function hasTextAfterCursorInBlock(range, body) {
+    let block = range.startContainer;
+    if (block.nodeType === Node.TEXT_NODE) block = block.parentNode;
+    while (block && block !== body && !block.matches('div, p, h1, h2, h3, h4, h5, h6, li, blockquote, pre, [data-md-code]')) {
+      block = block.parentNode;
+    }
+
+    if (!block || block === body) {
+      return range.startContainer.nodeType === Node.TEXT_NODE &&
+        range.startOffset < range.startContainer.textContent.length;
+    }
+
+    try {
+      const afterRange = document.createRange();
+      afterRange.setStart(range.startContainer, range.startOffset);
+      afterRange.setEnd(block, block.childNodes.length);
+      return afterRange.toString().length > 0;
     } catch (e) {
       return false;
     }
@@ -180,10 +663,10 @@
         if (/^[\s\u200B\u200C\u200D\uFEFF]*`+$/.test(curText)) {
           deletePrecise(curCont, curOff, curText.length);
         } else {
-          try { deletePrecise(container, offset, textBefore.length); } catch (err) {}
+          try { deletePrecise(container, offset, textBefore.length); } catch (err) { }
         }
       } else {
-        try { deletePrecise(container, offset, textBefore.length); } catch (err) {}
+        try { deletePrecise(container, offset, textBefore.length); } catch (err) { }
       }
       insertCodeBlock(body);
     }, 10);
@@ -218,13 +701,13 @@
       testRange.setStart(block, 0);
       testRange.setEnd(range.startContainer, range.startOffset);
       const beforeFragment = testRange.cloneContents();
-      
+
       if (beforeFragment.querySelector('br') || beforeFragment.textContent.trim().length > 0) {
         const afterRange = document.createRange();
         afterRange.setStart(range.startContainer, range.startOffset);
         afterRange.setEnd(block, block.childNodes.length);
         const afterContent = afterRange.extractContents();
-        
+
         let lastNode = block.lastChild;
         while (lastNode && lastNode.nodeType === Node.TEXT_NODE && lastNode.textContent === '') {
           const prev = lastNode.previousSibling;
@@ -234,13 +717,13 @@
         if (lastNode && lastNode.nodeName === 'BR') {
           block.removeChild(lastNode);
         }
-        
+
         const newBlock = document.createElement('div');
         newBlock.appendChild(afterContent);
         if (!newBlock.hasChildNodes()) newBlock.innerHTML = '<br>';
-        
+
         block.parentNode.insertBefore(newBlock, block.nextSibling);
-        
+
         const newSelRange = document.createRange();
         newSelRange.setStart(newBlock, 0);
         newSelRange.collapse(true);
@@ -248,6 +731,48 @@
         sel.addRange(newSelRange);
       }
     }
+  }
+
+  function anchorEmptyBlockForCommand(body) {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return null;
+
+    const range = sel.getRangeAt(0);
+    let block = range.startContainer;
+    if (block.nodeType === Node.TEXT_NODE) block = block.parentNode;
+    while (block && block !== body && !block.matches('div, p, h1, h2, h3, h4, h5, h6, li, blockquote')) {
+      block = block.parentNode;
+    }
+    if (!block || block === body || block.textContent.replace(/\u200B/g, '').length > 0) return null;
+
+    const marker = document.createElement('span');
+    marker.setAttribute('data-md-empty-anchor', '1');
+    marker.textContent = '\u200B';
+    block.replaceChildren(marker);
+    const markerRange = document.createRange();
+    markerRange.setStart(marker.firstChild, marker.textContent.length);
+    markerRange.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(markerRange);
+    return marker;
+  }
+
+  function removeEmptyBlockAnchor(marker, body) {
+    const activeMarker = marker && marker.isConnected
+      ? marker
+      : body.querySelector('[data-md-empty-anchor="1"]');
+    if (!activeMarker) return;
+
+    const block = activeMarker.parentNode;
+    activeMarker.remove();
+    if (!block.hasChildNodes()) block.appendChild(document.createElement('br'));
+
+    const sel = window.getSelection();
+    const range = document.createRange();
+    range.setStart(block, 0);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
   }
 
   function applyAutoFormat(e, body) {
@@ -331,9 +856,11 @@
     if (e.key === ' ') {
       const trimmedPrefix = textBefore.trim();
       const isStartOfLine = (textBefore.trimStart() === textBefore);
+      const hasTextAfterCursor = hasTextAfterCursorInBlock(range, body);
+      const isUnorderedListPrefix = trimmedPrefix === '*' || trimmedPrefix === '-';
 
       // Handle --- + space as horizontal rule
-      if (trimmedPrefix === '---') {
+      if (!hasTextAfterCursor && trimmedPrefix === '---') {
         e.preventDefault();
         deletePrecise(container, offset, textBefore.length);
         document.execCommand('insertHorizontalRule');
@@ -341,12 +868,14 @@
         return;
       }
 
-      if (/^[\s\u200B\u200C\u200D\uFEFF]*`{3}$/.test(textBefore)) {
+      if (!hasTextAfterCursor && /^[\s\u200B\u200C\u200D\uFEFF]*`{3}$/.test(textBefore)) {
         handleCodeBlockMacro(e, container, offset, textBefore, body);
         return;
       }
 
-      if (isStartOfLine && trimmedPrefix.length > 0) {
+      if (isStartOfLine &&
+        (!hasTextAfterCursor || isUnorderedListPrefix) &&
+        trimmedPrefix.length > 0) {
         let command = null;
         let arg = null;
         let prefixLen = 0;
@@ -362,10 +891,12 @@
           e.preventDefault();
           deletePrecise(container, offset, prefixLen);
           splitBlockAtCursor(body);
+          const emptyBlockAnchor = anchorEmptyBlockForCommand(body);
           // Use formatBlock to wrap the current line in a blockquote, then immediately
           // replace it with a styled <div>. This avoids Gmail's email renderer stripping
           // styles from <blockquote> elements.
           document.execCommand('formatBlock', false, 'blockquote');
+          removeEmptyBlockAnchor(emptyBlockAnchor, body);
           const currentSel = window.getSelection();
           if (currentSel.rangeCount) {
             let bq = currentSel.getRangeAt(0).startContainer;
@@ -375,7 +906,7 @@
               const quoteDiv = document.createElement('div');
               quoteDiv.setAttribute('style', BLOCKQUOTE_INLINE_STYLE);
               quoteDiv.setAttribute('data-md-quote', '1');
-              
+
               // Automatically inject a physical space so the user doesn't have to manually.
               const spaceNode = document.createTextNode('\u00A0');
               quoteDiv.appendChild(spaceNode);
@@ -386,7 +917,7 @@
               emptyDiv.innerHTML = '<br>';
               quoteDiv.parentNode.insertBefore(emptyDiv, quoteDiv.nextSibling);
               const newRange = document.createRange();
-              
+
               // Set cursor immediately after the injected space
               newRange.setStart(spaceNode, 1);
               newRange.collapse(true);
@@ -401,7 +932,9 @@
           if (command === 'insertUnorderedList' || command === 'insertOrderedList' || command === 'formatBlock') {
             splitBlockAtCursor(body);
           }
+          const emptyBlockAnchor = anchorEmptyBlockForCommand(body);
           document.execCommand(command, false, arg);
+          removeEmptyBlockAnchor(emptyBlockAnchor, body);
           // Add an empty line after the formatted block
           if (command === 'formatBlock') {
             // Move cursor to end of current content, then insert a paragraph after
@@ -424,62 +957,66 @@
         }
       }
 
-      for (const f of AUTO_FORMATS) {
-        const match = textBefore.match(f.reg);
-        if (match) {
-          const fullMatch = match[0];
-          const content = match[2] || match[1] || fullMatch.replace(/^(\*\*|__|~~|\*|_|`)|(\*\*|__|~~|\*|_|`)$/g, '');
+      if (!hasTextAfterCursor) {
+        for (const f of AUTO_FORMATS) {
+          const match = textBefore.match(f.reg);
+          if (match) {
+            const fullMatch = match[0];
+            const content = match[2] || match[1] || fullMatch.replace(/^(\*\*|__|~~|\*|_|`)|(\*\*|__|~~|\*|_|`)$/g, '');
 
-          let emojiStr = null;
-          if (f.cmd === 'emoji') {
-            const emojiMap = window.EMOJI_MAP || (typeof EMOJI_MAP !== 'undefined' ? EMOJI_MAP : {});
-            emojiStr = emojiMap[content] || emojiMap[content.toLowerCase()];
-            if (!emojiStr) continue; // Not a registered emoji, ignore
-          }
-
-          e.preventDefault();
-          deletePrecise(container, offset, fullMatch.length);
-
-          if (f.cmd === 'code') {
-            const html = `<code style="${INLINE_CODE_STYLE}">${content}</code>`;
-            document.execCommand('insertHTML', false, html);
-            // Explicitly place cursor outside the <code> element so the browser
-            // doesn't carry forward monospace/padding styles into subsequent text.
-            const codeSel = window.getSelection();
-            if (codeSel.rangeCount) {
-              let cur = codeSel.getRangeAt(0).startContainer;
-              if (cur.nodeType === Node.TEXT_NODE) cur = cur.parentNode;
-              while (cur && cur !== body && cur.tagName !== 'CODE') cur = cur.parentNode;
-              if (cur && cur.tagName === 'CODE') {
-                const space = document.createTextNode('\u00A0');
-                cur.parentNode.insertBefore(space, cur.nextSibling);
-                const r = document.createRange();
-                r.setStartAfter(space);
-                r.collapse(true);
-                codeSel.removeAllRanges();
-                codeSel.addRange(r);
-              } else {
-                document.execCommand('insertText', false, '\u00A0');
-              }
+            let emojiStr = null;
+            if (f.cmd === 'emoji') {
+              const emojiMap = window.EMOJI_MAP || (typeof EMOJI_MAP !== 'undefined' ? EMOJI_MAP : {});
+              emojiStr = emojiMap[content] || emojiMap[content.toLowerCase()];
+              if (!emojiStr) continue; // Not a registered emoji, ignore
             }
-          } else if (f.cmd === 'emoji') {
-            document.execCommand('insertText', false, emojiStr + '\u00A0');
-          } else {
-            let style = '';
-            if (f.cmd === 'bold') style = 'font-weight:bold;';
-            else if (f.cmd === 'italic') style = 'font-style:italic;';
-            else if (f.cmd === 'strikeThrough') style = 'text-decoration:line-through;';
 
-            const html = `<span style="${style}">${content}</span>\u00A0`;
-            document.execCommand('insertHTML', false, html);
+            e.preventDefault();
+            deletePrecise(container, offset, fullMatch.length);
+
+            if (f.cmd === 'code') {
+              const html = `<code style="${INLINE_CODE_STYLE}">${escapeHtml(content)}</code>`;
+              document.execCommand('insertHTML', false, html);
+              // Explicitly place cursor outside the <code> element so the browser
+              // doesn't carry forward monospace/padding styles into subsequent text.
+              const codeSel = window.getSelection();
+              if (codeSel.rangeCount) {
+                let cur = codeSel.getRangeAt(0).startContainer;
+                if (cur.nodeType === Node.TEXT_NODE) cur = cur.parentNode;
+                while (cur && cur !== body && cur.tagName !== 'CODE') cur = cur.parentNode;
+                if (cur && cur.tagName === 'CODE') {
+                  const space = document.createTextNode('\u00A0');
+                  cur.parentNode.insertBefore(space, cur.nextSibling);
+                  const r = document.createRange();
+                  r.setStartAfter(space);
+                  r.collapse(true);
+                  codeSel.removeAllRanges();
+                  codeSel.addRange(r);
+                } else {
+                  document.execCommand('insertText', false, '\u00A0');
+                }
+              }
+            } else if (f.cmd === 'emoji') {
+              document.execCommand('insertText', false, emojiStr + '\u00A0');
+            } else {
+              let style = '';
+              if (f.cmd === 'bold') style = 'font-weight:bold;';
+              else if (f.cmd === 'italic') style = 'font-style:italic;';
+              else if (f.cmd === 'strikeThrough') style = 'text-decoration:line-through;';
+
+              const html = `<span style="${style}">${escapeHtml(content)}</span>\u00A0`;
+              document.execCommand('insertHTML', false, html);
+            }
+            return;
           }
-          return;
         }
       }
     }
 
     if (e.key === 'Enter') {
-      if (textBefore.trim() === '---') {
+      const hasTextAfterCursor = hasTextAfterCursorInBlock(range, body);
+
+      if (!hasTextAfterCursor && textBefore.trim() === '---') {
         e.preventDefault();
         deletePrecise(container, offset, textBefore.length);
         document.execCommand('insertHorizontalRule');
@@ -487,7 +1024,7 @@
         return;
       }
 
-      if (/^[\s\u200B\u200C\u200D\uFEFF]*`{3}$/.test(textBefore)) {
+      if (!hasTextAfterCursor && /^[\s\u200B\u200C\u200D\uFEFF]*`{3}$/.test(textBefore)) {
         handleCodeBlockMacro(e, container, offset, textBefore, body);
         return;
       }
@@ -537,79 +1074,93 @@
     if (body._mdShortcutsAttached) return;
     body._mdShortcutsAttached = true;
     body.addEventListener('keydown', (e) => {
-        if (opts.autoFormat) {
-          applyAutoFormat(e, body);
-        }
+      if (handleSlashCommandKeydown(e, body)) return;
 
-        // Code shortcut (default Ctrl+E): wrap/unwrap selected text in inline code
-        if (opts.codeShortcut && matchesShortcut(e, opts.codeShortcut)) {
-          const sel = window.getSelection();
-          if (sel && sel.rangeCount && !sel.isCollapsed && body.contains(sel.getRangeAt(0).commonAncestorContainer)) {
-            e.preventDefault();
-            const range = sel.getRangeAt(0);
+      if (opts.autoFormat) {
+        applyAutoFormat(e, body);
+      }
 
-            // Toggle off: if selection is inside an existing <code>, unwrap it
-            let ancestor = range.commonAncestorContainer;
-            if (ancestor.nodeType === Node.TEXT_NODE) ancestor = ancestor.parentElement;
-            let codeEl = ancestor;
-            while (codeEl && codeEl !== body) {
-              if (codeEl.tagName === 'CODE') break;
-              codeEl = codeEl.parentElement;
-            }
-            if (codeEl && codeEl.tagName === 'CODE') {
-              const text = document.createTextNode(codeEl.textContent);
-              codeEl.parentNode.replaceChild(text, codeEl);
-            } else {
-              const selectedText = sel.toString();
-              // Build the <code> element manually so we can place the cursor
-              // *after* it in a clean text node, preventing style leaking.
-              range.deleteContents();
-              const codeNode = document.createElement('code');
-              codeNode.setAttribute('style', INLINE_CODE_STYLE);
-              codeNode.textContent = selectedText;
-              range.insertNode(codeNode);
-              // Insert a zero-width space after <code> to break style inheritance
-              const breaker = document.createTextNode('\u200B');
-              if (codeNode.nextSibling) {
-                codeNode.parentNode.insertBefore(breaker, codeNode.nextSibling);
-              } else {
-                codeNode.parentNode.appendChild(breaker);
-              }
-              // Place cursor after the breaker so typing starts unstyled
-              const newRange = document.createRange();
-              newRange.setStartAfter(breaker);
-              newRange.collapse(true);
-              sel.removeAllRanges();
-              sel.addRange(newRange);
-            }
-            return;
-          }
-        }
-
-        if (e.key !== ' ' && e.key !== 'Enter') return;
+      // Code shortcut (default Ctrl+E): wrap/unwrap selected text in inline code
+      if (opts.codeShortcut && matchesShortcut(e, opts.codeShortcut)) {
         const sel = window.getSelection();
-        if (!sel.rangeCount) return;
-        const range = sel.getRangeAt(0);
-        let container = range.startContainer;
-        let offset = range.startOffset;
-
-        if (container.nodeType !== Node.TEXT_NODE) {
-          if (container.childNodes[offset - 1] && container.childNodes[offset - 1].nodeType === Node.TEXT_NODE) {
-            container = container.childNodes[offset - 1];
-            offset = container.textContent.length;
-          } else {
-            return;
-          }
-        }
-
-        const text = container.textContent;
-        if (text.slice(offset - 5, offset) === '/note') {
+        if (sel && sel.rangeCount && !sel.isCollapsed && body.contains(sel.getRangeAt(0).commonAncestorContainer)) {
           e.preventDefault();
-          deletePrecise(container, offset, 5);
-          const html = '<div class="md-callout" style="background:#f2f2f2;padding:8px;border-radius:4px;margin:8px 0;">Important info</div>';
-          document.execCommand('insertHTML', false, html);
+          const range = sel.getRangeAt(0);
+
+          // Toggle off: if selection is inside an existing <code>, unwrap it
+          let ancestor = range.commonAncestorContainer;
+          if (ancestor.nodeType === Node.TEXT_NODE) ancestor = ancestor.parentElement;
+          let codeEl = ancestor;
+          while (codeEl && codeEl !== body) {
+            if (codeEl.tagName === 'CODE') break;
+            codeEl = codeEl.parentElement;
+          }
+          if (codeEl && codeEl.tagName === 'CODE') {
+            const text = document.createTextNode(codeEl.textContent);
+            codeEl.parentNode.replaceChild(text, codeEl);
+          } else {
+            const selectedText = sel.toString();
+            // Build the <code> element manually so we can place the cursor
+            // *after* it in a clean text node, preventing style leaking.
+            range.deleteContents();
+            const codeNode = document.createElement('code');
+            codeNode.setAttribute('style', INLINE_CODE_STYLE);
+            codeNode.textContent = selectedText;
+            range.insertNode(codeNode);
+            // Insert a zero-width space after <code> to break style inheritance
+            const breaker = document.createTextNode('\u200B');
+            if (codeNode.nextSibling) {
+              codeNode.parentNode.insertBefore(breaker, codeNode.nextSibling);
+            } else {
+              codeNode.parentNode.appendChild(breaker);
+            }
+            // Place cursor after the breaker so typing starts unstyled
+            const newRange = document.createRange();
+            newRange.setStartAfter(breaker);
+            newRange.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(newRange);
+          }
+          return;
         }
-      });
+      }
+
+      if (e.key !== ' ' && e.key !== 'Enter') return;
+      const sel = window.getSelection();
+      if (!sel.rangeCount) return;
+      const range = sel.getRangeAt(0);
+      let container = range.startContainer;
+      let offset = range.startOffset;
+
+      if (container.nodeType !== Node.TEXT_NODE) {
+        if (container.childNodes[offset - 1] && container.childNodes[offset - 1].nodeType === Node.TEXT_NODE) {
+          container = container.childNodes[offset - 1];
+          offset = container.textContent.length;
+        } else {
+          return;
+        }
+      }
+
+      const text = container.textContent;
+      if (text.slice(offset - 5, offset) === '/note' &&
+        !hasTextAfterCursorInBlock(range, body)) {
+        e.preventDefault();
+        closeSlashCommandMenu(body);
+        deletePrecise(container, offset, 5);
+        const html = `<div class="md-callout" style="${CALLOUT_INLINE_STYLE}">Important info</div>`;
+        document.execCommand('insertHTML', false, html);
+      }
+    });
+    body.addEventListener('input', () => updateSlashCommandMenu(body));
+    body.addEventListener('keyup', (event) => {
+      if (['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) {
+        updateSlashCommandMenu(body);
+      }
+    });
+    body.addEventListener('mouseup', () => updateSlashCommandMenu(body));
+    body.addEventListener('blur', () => {
+      window.setTimeout(() => closeSlashCommandMenu(body), 0);
+    }, true);
   }
 
   function matchesShortcut(e, combo) {
@@ -630,35 +1181,37 @@
     if (body._mdPasteAttached) return;
     body._mdPasteAttached = true;
     body.addEventListener('paste', (e) => {
-        const text = e.clipboardData.getData('text/plain');
-        if (!text) return;
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        if (opts.convertOnPaste) {
-          // Because convertMarkdown takes priority, we must trigger it
-          convertMarkdown(opts, text);
+      const text = e.clipboardData.getData('text/plain');
+      if (!text) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if (opts.convertOnPaste) {
+        // Because convertMarkdown takes priority, we must trigger it
+        convertMarkdown(opts, text);
+      } else {
+        // Insert as plain text wrapped in <div> elements to match Gmail's native structure.
+        // Using <br> instead would corrupt Gmail's contenteditable state, causing it to
+        // switch from <div> to <p> elements for subsequent lines (which have margin spacing).
+        const lines = text.split(/\r\n|\r|\n/);
+        if (lines.length === 1) {
+          // Single line: insert inline to avoid block-level duplication quirks
+          document.execCommand('insertText', false, text);
         } else {
-          // Insert as plain text wrapped in <div> elements to match Gmail's native structure.
-          // Using <br> instead would corrupt Gmail's contenteditable state, causing it to
-          // switch from <div> to <p> elements for subsequent lines (which have margin spacing).
-          const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-          const lines = escaped.split('\n');
-          if (lines.length === 1) {
-            // Single line: insert inline to avoid block-level duplication quirks
-            document.execCommand('insertText', false, text);
-          } else {
-            // Multi-line: wrap in <div> to match Gmail's native structure
-            const html = lines.map(line => `<div>${line || '<br>'}</div>`).join('');
-            document.execCommand('insertHTML', false, html);
-          }
+          // Multi-line: wrap in <div> to match Gmail's native structure
+          const html = lines.map(line => `<div>${line ? escapeHtml(line) : '<br>'}</div>`).join('');
+          document.execCommand('insertHTML', false, html);
         }
-      }, true);
+      }
+    }, true);
   }
 
 
 
   function setupCentralObserver(opts) {
     function scanAndAttach() {
+      if (slashMenuState && !slashMenuState.body.isConnected) {
+        closeSlashCommandMenu();
+      }
       const editors = document.querySelectorAll(SELECTOR);
       editors.forEach(body => {
         attachShortcutListener(body, opts);
@@ -709,18 +1262,19 @@
       const withEmojis = replaceEmojis(text);
       return convertLinksToReadable(withEmojis);
     };
+    const markedOpts = createMarkedOptions(markedLib, opts.gfm);
 
     if (markdownText !== undefined) {
-      const html = gmailifyHtml(markedLib.parse(process(markdownText), { gfm: opts.gfm }));
+      const html = gmailifyHtml(markedLib.parse(process(markdownText), markedOpts));
       document.execCommand('insertHTML', false, html);
       return;
     }
 
     if (range && emailBody.contains(range.commonAncestorContainer) && selection.toString().trim()) {
-      const html = gmailifyHtml(markedLib.parse(process(selection.toString()), { gfm: opts.gfm }));
+      const html = gmailifyHtml(markedLib.parse(process(selection.toString()), markedOpts));
       document.execCommand('insertHTML', false, html);
     } else {
-      const html = gmailifyHtml(markedLib.parse(process(emailBody.innerText), { gfm: opts.gfm }));
+      const html = gmailifyHtml(markedLib.parse(process(emailBody.innerText), markedOpts));
       emailBody.innerHTML = html;
     }
     emailBody.dispatchEvent(new Event('input', { bubbles: true }));
@@ -745,7 +1299,7 @@
           if (sel && sel.rangeCount) {
             let container = sel.getRangeAt(0).startContainer;
             if (container.nodeType === Node.TEXT_NODE) container = container.parentNode;
-            
+
             // First check if we are inside a contenteditable message body
             if (container.closest && container.closest(SELECTOR)) {
               const li = container.closest('li');

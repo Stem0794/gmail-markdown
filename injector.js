@@ -30,6 +30,49 @@
     return text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 ($2)');
   }
 
+  function escapeHtml(text) {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function isSafeLinkUrl(url) {
+    var normalized = String(url || '').trim().replace(/[\u0000-\u0020\u007F]+/g, '');
+    var scheme = normalized.match(/^([a-z][a-z0-9+.-]*):/i);
+    return !scheme || ['http', 'https', 'mailto'].indexOf(scheme[1].toLowerCase()) !== -1;
+  }
+
+  function createMarkedOptions(markedLib, gfm) {
+    var options = { gfm: gfm };
+    if (!markedLib || typeof markedLib.Renderer !== 'function') return options;
+
+    var renderer = new markedLib.Renderer();
+    renderer.html = function (html) {
+      var raw = typeof html === 'string' ? html : (html && html.text) || '';
+      return escapeHtml(raw);
+    };
+    renderer.link = function (linkOrHref, title, text) {
+      var isToken = linkOrHref && typeof linkOrHref === 'object';
+      var href = isToken ? linkOrHref.href : linkOrHref;
+      var linkTitle = isToken ? linkOrHref.title : title;
+      var label = isToken
+        ? (linkOrHref.tokens && this.parser
+          ? this.parser.parseInline(linkOrHref.tokens)
+          : escapeHtml(linkOrHref.text || href || ''))
+        : (text || escapeHtml(href || ''));
+
+      if (!isSafeLinkUrl(href)) return label;
+
+      var titleAttribute = linkTitle ? ' title="' + escapeHtml(linkTitle) + '"' : '';
+      return '<a href="' + escapeHtml(href) + '"' + titleAttribute + '>' + label + '</a>';
+    };
+    options.renderer = renderer;
+    return options;
+  }
+
   var interval = setInterval(function () {
     var emailBody = document.querySelector(SELECTOR);
 
@@ -37,7 +80,7 @@
       clearInterval(interval);
 
       chrome.storage.sync.get({ gfm: true }, function (opts) {
-        var markedOpts = { gfm: opts.gfm };
+        var markedOpts = createMarkedOptions(marked, opts.gfm);
         var selection = window.getSelection();
         var range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
 
@@ -73,7 +116,7 @@
       }
     }
   }, 300);
-  
+
   if (typeof module !== 'undefined') {
     module.exports = {
       replaceEmojis,
