@@ -857,7 +857,6 @@
       const trimmedPrefix = textBefore.trim();
       const isStartOfLine = (textBefore.trimStart() === textBefore);
       const hasTextAfterCursor = hasTextAfterCursorInBlock(range, body);
-      const isUnorderedListPrefix = trimmedPrefix === '*' || trimmedPrefix === '-';
 
       // Handle --- + space as horizontal rule
       if (!hasTextAfterCursor && trimmedPrefix === '---') {
@@ -873,9 +872,7 @@
         return;
       }
 
-      if (isStartOfLine &&
-        (!hasTextAfterCursor || isUnorderedListPrefix) &&
-        trimmedPrefix.length > 0) {
+      if (isStartOfLine && trimmedPrefix.length > 0) {
         let command = null;
         let arg = null;
         let prefixLen = 0;
@@ -886,6 +883,14 @@
         else if (trimmedPrefix === '*' || trimmedPrefix === '-') { command = 'insertUnorderedList'; prefixLen = 1; }
         else if (/^\d+\.$/.test(trimmedPrefix)) { command = 'insertOrderedList'; prefixLen = trimmedPrefix.length; }
         else if (trimmedPrefix === '>') { command = 'insertQuoteDiv'; prefixLen = 1; }
+
+        // Ordered-list prefixes ("1.") commonly appear in pasted enumerated text
+        // (e.g. "1.TEST"), so only convert them on an otherwise-empty line. Headings,
+        // unordered lists and quotes are unambiguous enough to convert even when text
+        // follows the cursor (e.g. typing "##" in front of existing "test").
+        if (command === 'insertOrderedList' && hasTextAfterCursor) {
+          command = null;
+        }
 
         if (command === 'insertQuoteDiv') {
           e.preventDefault();

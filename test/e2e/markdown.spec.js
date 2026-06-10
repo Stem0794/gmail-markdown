@@ -194,6 +194,18 @@ test('auto-formats "### " into an H3 heading', async ({ page }) => {
   await expect(page.locator(`${EDITOR} h3`)).toBeAttached();
 });
 
+test('auto-formats "## " into an H2 when prepended before existing text', async ({ page }) => {
+  await setupPage(page);
+  // Type "test", then go back to the start and type "##" before it.
+  await setEditorText(page, '##test');
+  await setCaretOffset(page, 2); // caret sits right after "##", before "test"
+  await page.keyboard.press('Space');
+
+  const heading = page.locator(`${EDITOR} h2`);
+  await expect(heading).toBeAttached();
+  await expect(heading).toHaveText('test');
+});
+
 test('auto-formats "> " into a blockquote', async ({ page }) => {
   await setupPage(page);
   await setEditorText(page, '>');
