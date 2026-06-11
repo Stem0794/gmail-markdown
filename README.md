@@ -12,7 +12,10 @@ A Chrome extension that lets you compose Gmail messages in Markdown and convert 
 - **Emoji shortcodes** — type `:rocket:` or `:heart:` and they become 🚀 and ❤️. Over 1 000 GitHub-style codes are supported. Emoji characters you type directly (e.g. 👍) are left untouched.
 - **Readable links** — `[text](url)` is converted to `text (url)` so recipients see real URLs.
 - **Auto-format shortcuts** — live Markdown shortcuts as you type (see below).
-- **Themes** — choose *Clean*, *Notion-style*, or *Email-friendly* in the options page.
+- **Slash command menu** — type `/` to insert headings, lists, quotes, code blocks, dividers, and notes without leaving the keyboard.
+- **Nested lists** — press `Tab` to nest the current list item and `Shift+Tab` to move it back one level.
+- **Paste-safe editing** — pasted multiline text keeps its original line order when individual lines are later converted into lists or other blocks.
+- **Themes** — choose the *Default* or *Bold* theme in the options page.
 - **Custom keyboard shortcuts** — set any modifier+key combo (e.g. `Cmd+Shift+M` on macOS). The extension command is updated automatically when you save.
 
 ## Installation
@@ -61,7 +64,12 @@ To remove heading or blockquote formatting, place the cursor at the very start o
 
 ### Slash commands
 
-At the start of a compose line, type `/` to open the formatting menu. Continue typing to filter it, then use the arrow keys and **Enter**, **Tab**, or the mouse to select a command.
+At the start of a compose line, type `/` to open the formatting menu. Continue typing to filter it, then:
+
+- Use **Arrow Up** and **Arrow Down** to change the selected command. The menu automatically scrolls to keep the selected option visible.
+- Press **Enter** or **Tab** to apply the selected command.
+- Press **Escape** to close the menu without changing the typed command.
+- Click a command to apply it with the mouse.
 
 | Command | Result |
 |---|---|
@@ -77,6 +85,12 @@ At the start of a compose line, type `/` to open the formatting menu. Continue t
 
 Aliases such as `/title`, `/heading`, `/subheading`, `/bullet`, `/ordered`, `/blockquote`, and `/codeblock` are also searchable.
 
+### Editing lists
+
+- Press **Tab** inside a list item to nest it under the previous item.
+- Press **Shift+Tab** to move a nested item back one level.
+- Bullet and numbered list conversion preserves the current line's position, including lines edited after a multiline paste.
+
 ### Options
 
 Click the extension icon → *Options* (or go to `chrome://extensions` → *Details* → *Extension options*) to configure:
@@ -88,8 +102,6 @@ Click the extension icon → *Options* (or go to `chrome://extensions` → *Deta
 | Theme | Choose between **Default** or **Bold** theme style |
 | Custom Shortcut | Override the default `Ctrl+Shift+M` shortcut |
 | Disable default shortcut | Turn off the built-in keyboard command |
-
-### Themes
 
 ### Themes
 
@@ -146,6 +158,10 @@ The test suite covers:
 - HTML-to-Markdown reverse conversion
 - Emoji replacement logic
 - Theme application
+- Slash command filtering, keyboard navigation, auto-scrolling, and insertion
+- Heading formatting that remains active after typing begins
+- Nested-list indentation with `Tab` and `Shift+Tab`
+- Pasted multiline content and position-preserving list conversion
 - **Gmail Sanitization Defense:** Verifies that no Gmail-unsupported CSS (Flexbox, Grid, absolute positioning, etc.) is used in produced styles.
 - **Playwright E2E Tests:** Fully automated end-to-end tests covering keyboard shortcuts and auto-formatting live in the browser.
 

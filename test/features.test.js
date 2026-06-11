@@ -91,12 +91,13 @@ describe('Extension features', function() {
     assert.include(output, 'overflow-x:auto');
   });
 
-  it('captures Tab key in lists and prevents default behavior', function() {
+  it('captures Tab and nests the current list item', function() {
     // We need to trigger the window listener added in the chrome.storage callback
     const html = `
       <div aria-label="Message Body" contenteditable="true">
         <ul>
-          <li><span id="target">Item</span></li>
+          <li>First</li>
+          <li><span id="target">Second</span></li>
         </ul>
       </div>
     `;
@@ -109,10 +110,6 @@ describe('Extension features', function() {
     sel.removeAllRanges();
     sel.addRange(range);
 
-    // Mock execCommand
-    let commandCalled = null;
-    document.execCommand = (cmd) => { commandCalled = cmd; };
-
     const event = new window.KeyboardEvent('keydown', {
       key: 'Tab',
       bubbles: true,
@@ -123,6 +120,9 @@ describe('Extension features', function() {
     window.dispatchEvent(event);
 
     assert.isTrue(event.defaultPrevented, 'Tab event should be prevented in list');
-    assert.equal(commandCalled, 'indent');
+    assert.equal(
+      document.querySelector('ul > li > ul > li').textContent,
+      'Second'
+    );
   });
 });

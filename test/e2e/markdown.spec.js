@@ -218,6 +218,45 @@ test('auto-formats "- " into an unordered list item', async ({ page }) => {
   await expect(page.locator(`${EDITOR} ul li`)).toBeAttached();
 });
 
+test('Tab nests the current bullet item under the previous item', async ({ page }) => {
+  await setupPage(page);
+  await page.locator(EDITOR).evaluate((editor) => {
+    editor.innerHTML = '<ul><li>first line</li><li>second line</li></ul>';
+    editor.focus();
+    const secondItem = editor.querySelectorAll('li')[1];
+    const range = document.createRange();
+    range.setStart(secondItem.firstChild, secondItem.textContent.length);
+    range.collapse(true);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+  });
+
+  await page.keyboard.press('Tab');
+
+  await expect(page.locator(`${EDITOR} > ul > li`)).toHaveCount(1);
+  await expect(page.locator(`${EDITOR} > ul > li > ul > li`)).toHaveText('second line');
+});
+
+test('Shift+Tab moves a nested bullet item back to the parent level', async ({ page }) => {
+  await setupPage(page);
+  await page.locator(EDITOR).evaluate((editor) => {
+    editor.innerHTML = '<ul><li>first line<ul><li>second line</li></ul></li></ul>';
+    editor.focus();
+    const nestedItem = editor.querySelector('ul ul li');
+    const range = document.createRange();
+    range.setStart(nestedItem.firstChild, nestedItem.textContent.length);
+    range.collapse(true);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+  });
+
+  await page.keyboard.press('Shift+Tab');
+
+  await expect(page.locator(`${EDITOR} > ul > li`)).toHaveCount(2);
+  await expect(page.locator(`${EDITOR} > ul > li`).filter({ hasText: 'second line' })).toHaveCount(1);
+  await expect(page.locator(`${EDITOR} ul ul`)).toHaveCount(0);
+});
+
 test('adding a list on a blank line does not merge the following line', async ({ page }) => {
   await setupPage(page);
   await pasteText(page, '\n--');
@@ -265,6 +304,45 @@ test('adding a space after a pasted bullet marker formats only that line', async
   }));
   expect(state.listItemText).toBe('dqdqz');
   expect(state.plainLines).toEqual(['test', 'dqzdqz']);
+});
+
+test('converting an edited pasted line to a bullet keeps it in place', async ({ page }) => {
+  await setupPage(page);
+  await pasteText(page, [
+    '* Description : Capture fixe des dates clés.',
+    'Comment tester :',
+    'Prendre un nouveau lead (statut Empty).',
+    'Le passer en "Pris en charge".',
+    'Modifier le statut et revenir en "Pris en charge".',
+  ].join('\n'));
+
+  await page.locator(EDITOR).evaluate((editor) => {
+    const commentLine = editor.children[1];
+    const range = document.createRange();
+    range.setStart(commentLine.firstChild, 0);
+    range.collapse(true);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+  });
+  await page.keyboard.press('Backspace');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('*');
+  await page.keyboard.press('Space');
+
+  const state = await page.locator(EDITOR).evaluate((editor) => ({
+    children: Array.from(editor.children).map((child) => ({
+      tag: child.tagName,
+      text: child.innerText,
+    })),
+    listText: editor.querySelector('ul li')?.innerText,
+  }));
+  expect(state.listText).toBe('Comment tester :');
+  expect(state.children[1]).toEqual({ tag: 'UL', text: 'Comment tester :' });
+  expect(state.children.slice(2).map((child) => child.text)).toEqual([
+    'Prendre un nouveau lead (statut Empty).',
+    'Le passer en "Pris en charge".',
+    'Modifier le statut et revenir en "Pris en charge".',
+  ]);
 });
 
 test('auto-formats "1. " into an ordered list item', async ({ page }) => {

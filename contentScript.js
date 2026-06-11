@@ -733,6 +733,52 @@
     }
   }
 
+  function convertCurrentBlockToList(body, ordered) {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return false;
+
+    const range = selection.getRangeAt(0);
+    let block = range.startContainer;
+    if (block.nodeType === Node.TEXT_NODE) block = block.parentNode;
+    while (block && block !== body && !block.matches('div, p')) {
+      block = block.parentNode;
+    }
+
+    const list = document.createElement(ordered ? 'ol' : 'ul');
+    const item = document.createElement('li');
+    list.appendChild(item);
+
+    if (block && block !== body) {
+      while (block.firstChild) item.appendChild(block.firstChild);
+      block.parentNode.replaceChild(list, block);
+    } else if (range.startContainer.nodeType === Node.TEXT_NODE &&
+      range.startContainer.parentNode === body) {
+      const textNode = range.startContainer;
+      item.appendChild(textNode.cloneNode(true));
+      body.replaceChild(list, textNode);
+    } else {
+      const referenceNode = body.childNodes[range.startOffset] || null;
+      body.insertBefore(list, referenceNode);
+    }
+
+    if (!item.hasChildNodes() ||
+      (item.childNodes.length === 1 && item.firstChild.nodeType === Node.TEXT_NODE && item.textContent === '')) {
+      item.replaceChildren(document.createElement('br'));
+    }
+
+    const itemRange = document.createRange();
+    if (item.firstChild && item.firstChild.nodeType === Node.TEXT_NODE) {
+      itemRange.setStart(item.firstChild, 0);
+    } else {
+      itemRange.setStart(item, 0);
+    }
+    itemRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(itemRange);
+    body.dispatchEvent(new window.Event('input', { bubbles: true }));
+    return true;
+  }
+
   function anchorEmptyBlockForCommand(body) {
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return null;
@@ -929,7 +975,11 @@
         } else if (command) {
           e.preventDefault();
           deletePrecise(container, offset, prefixLen);
-          if (command === 'insertUnorderedList' || command === 'insertOrderedList' || command === 'formatBlock') {
+          if (command === 'insertUnorderedList' || command === 'insertOrderedList') {
+            convertCurrentBlockToList(body, command === 'insertOrderedList');
+            return;
+          }
+          if (command === 'formatBlock') {
             splitBlockAtCursor(body);
           }
           const emptyBlockAnchor = anchorEmptyBlockForCommand(body);
@@ -1177,6 +1227,66 @@
       e.metaKey === meta;
   }
 
+  function getSelectedListItem() {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return null;
+
+    let node = selection.getRangeAt(0).startContainer;
+    if (node.nodeType === Node.TEXT_NODE) node = node.parentNode;
+    return node.closest ? node.closest('li') : null;
+  }
+
+  function indentListItem(listItem) {
+    const list = listItem.parentElement;
+    if (!list || !list.matches('ul, ol')) return false;
+
+    const previousItem = listItem.previousElementSibling;
+    if (!previousItem || previousItem.tagName !== 'LI') return true;
+
+    let nestedList = Array.from(previousItem.children)
+      .find(child => child.tagName === list.tagName);
+    if (!nestedList) {
+      nestedList = document.createElement(list.tagName.toLowerCase());
+      previousItem.appendChild(nestedList);
+    }
+
+    nestedList.appendChild(listItem);
+    return true;
+  }
+
+  function outdentListItem(listItem) {
+    const list = listItem.parentElement;
+    if (!list || !list.matches('ul, ol')) return false;
+
+    const parentItem = list.parentElement;
+    if (!parentItem || parentItem.tagName !== 'LI') return true;
+
+    const outerList = parentItem.parentElement;
+    if (!outerList || !outerList.matches('ul, ol')) return true;
+
+    outerList.insertBefore(listItem, parentItem.nextSibling);
+    if (!list.querySelector(':scope > li')) list.remove();
+    return true;
+  }
+
+  function handleListTab(event) {
+    if (event.key !== 'Tab') return false;
+
+    const listItem = getSelectedListItem();
+    const editor = listItem && listItem.closest(SELECTOR);
+    if (!listItem || !editor) return false;
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+
+    if (event.shiftKey) outdentListItem(listItem);
+    else indentListItem(listItem);
+
+    editor.dispatchEvent(new window.Event('input', { bubbles: true }));
+    return true;
+  }
+
   function attachPasteListener(body, opts) {
     if (body._mdPasteAttached) return;
     body._mdPasteAttached = true;
@@ -1294,28 +1404,7 @@
 
       // Capture Tab early before Gmail's focus navigation can intercept it 
       window.addEventListener('keydown', (e) => {
-        if (e.key === 'Tab') {
-          const sel = window.getSelection();
-          if (sel && sel.rangeCount) {
-            let container = sel.getRangeAt(0).startContainer;
-            if (container.nodeType === Node.TEXT_NODE) container = container.parentNode;
-
-            // First check if we are inside a contenteditable message body
-            if (container.closest && container.closest(SELECTOR)) {
-              const li = container.closest('li');
-              if (li) {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                if (e.shiftKey) {
-                  document.execCommand('outdent', false, null);
-                } else {
-                  document.execCommand('indent', false, null);
-                }
-              }
-            }
-          }
-        }
+        handleListTab(e);
       }, true); // useCapture: true is critical here
     });
   }
