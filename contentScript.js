@@ -15,7 +15,7 @@
   const PRE_WRAPPER_STYLE = 'background-color:#f7f6f3;border-radius:3px;padding:12px 16px;margin:1em 0;overflow-x:auto;max-width:100%;';
   const PRE_CODE_STYLE = 'font-family:SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;font-size:0.85em;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;color:#333;margin:0;padding:0;display:block;';
   const INLINE_CODE_STYLE = 'background-color:#f2f2f2;color:#d73a49;padding:2px 4px;border-radius:3px;font-family:monospace;';
-  const CALLOUT_INLINE_STYLE = 'background-color:#f2f2f2;padding:8px;border-radius:4px;margin:8px 0;';
+  const CALLOUT_INLINE_STYLE = 'display:inline-block;max-width:100%;box-sizing:border-box;background-color:#f2f2f2;padding:10px 14px;border-radius:4px;margin:8px 0;overflow-wrap:anywhere;word-break:break-word;';
 
   const SLASH_COMMANDS = [
     { id: 'quote', label: 'Quote', description: 'Insert a quoted block', aliases: ['blockquote'] },

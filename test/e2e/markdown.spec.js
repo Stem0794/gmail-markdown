@@ -463,6 +463,37 @@ test('auto-formats "/note " into a callout', async ({ page }) => {
   expect(await callout.getAttribute('style')).toContain('background-color:');
 });
 
+test('/note shrink-wraps short text and stays within the email width', async ({ page }) => {
+  await setupPage(page);
+  await page.keyboard.type('/note');
+  await page.keyboard.press('Enter');
+
+  const shortState = await page.locator(`${EDITOR} .md-callout`).evaluate((callout) => {
+    const editor = callout.closest('[aria-label="Message Body"]');
+    const style = getComputedStyle(callout);
+    return {
+      display: style.display,
+      noteWidth: callout.getBoundingClientRect().width,
+      editorWidth: editor.getBoundingClientRect().width,
+      paddingLeft: Number.parseFloat(style.paddingLeft),
+      paddingRight: Number.parseFloat(style.paddingRight),
+    };
+  });
+  expect(shortState.display).toBe('inline-block');
+  expect(shortState.noteWidth).toBeLessThan(shortState.editorWidth);
+  expect(shortState.paddingLeft).toBeGreaterThanOrEqual(10);
+  expect(shortState.paddingRight).toBeGreaterThanOrEqual(10);
+
+  await page.locator(`${EDITOR} .md-callout`).evaluate((callout) => {
+    callout.textContent = 'LongNote'.repeat(300);
+  });
+  const longState = await page.locator(`${EDITOR} .md-callout`).evaluate((callout) => ({
+    noteWidth: callout.getBoundingClientRect().width,
+    editorWidth: callout.closest('[aria-label="Message Body"]').getBoundingClientRect().width,
+  }));
+  expect(longState.noteWidth).toBeLessThanOrEqual(longState.editorWidth);
+});
+
 test('inserting a space after "/note" with trailing text preserves the text', async ({ page }) => {
   await setupPage(page);
   await setEditorText(page, '/notetext');
