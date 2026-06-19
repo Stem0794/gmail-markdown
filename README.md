@@ -12,7 +12,7 @@ A Chrome extension that lets you compose Gmail messages in Markdown and convert 
 - **Emoji shortcodes** — type `:rocket:` or `:heart:` and they become 🚀 and ❤️. Over 1 000 GitHub-style codes are supported. Emoji characters you type directly (e.g. 👍) are left untouched.
 - **Readable links** — `[text](url)` is converted to `text (url)` so recipients see real URLs.
 - **Auto-format shortcuts** — live Markdown shortcuts as you type (see below).
-- **Slash command menu** — type `/` to insert headings, lists, quotes, code blocks, dividers, and notes without leaving the keyboard.
+- **Slash command menu** — type `/` to insert headings, lists, quotes, code blocks, tables, dividers, and notes without leaving the keyboard.
 - **Nested lists** — press `Tab` to nest the current list item and `Shift+Tab` to move it back one level.
 - **Paste-safe editing** — pasted multiline text keeps its original line order when individual lines are later converted into lists or other blocks.
 - **Themes** — choose the *Default* or *Bold* theme in the options page.
@@ -80,6 +80,7 @@ At the start of a compose line, type `/` to open the formatting menu. Continue t
 | `/numbered` | Numbered list |
 | `/quote` | Blockquote |
 | `/code` | Code block |
+| `/table` | Editable 2-column table with a header and two rows |
 | `/divider` | Horizontal rule |
 | `/note` | Gray callout for important information |
 
@@ -90,6 +91,20 @@ Aliases such as `/title`, `/heading`, `/subheading`, `/bullet`, `/ordered`, `/bl
 - Press **Tab** inside a list item to nest it under the previous item.
 - Press **Shift+Tab** to move a nested item back one level.
 - Bullet and numbered list conversion preserves the current line's position, including lines edited after a multiline paste.
+
+### Editing tables
+
+`/table` inserts a two-column table with one header row and two body rows.
+
+- Start typing immediately in the first header cell.
+- Press **Tab** to move to the next cell.
+- Press **Shift+Tab** to move to the previous cell.
+- Press **Tab** from the final cell to add a new row.
+- Select a cell and use **Add row** to insert a body row immediately below it.
+- Select a cell and use **Add column** to insert a column immediately to its right.
+- Use **Delete row** or **Delete column** to remove the selected cell's row or column.
+- Deleting the final row or column removes the table and leaves a writable line.
+- Table styling survives Gmail rendering without changing Gmail's native scheduling widgets.
 
 ### Options
 
@@ -161,6 +176,7 @@ The test suite covers:
 - Slash command filtering, keyboard navigation, auto-scrolling, and insertion
 - Heading formatting that remains active after typing begins
 - Nested-list indentation with `Tab` and `Shift+Tab`
+- Editable table insertion, cell navigation, row creation, and row/column deletion
 - Pasted multiline content and position-preserving list conversion
 - **Gmail Sanitization Defense:** Verifies that no Gmail-unsupported CSS (Flexbox, Grid, absolute positioning, etc.) is used in produced styles.
 - **Playwright E2E Tests:** Fully automated end-to-end tests covering keyboard shortcuts and auto-formatting live in the browser.
@@ -172,7 +188,7 @@ A standalone mock testing document is available at `test/visual-testbed.html`. Y
 ### Packaging for the Chrome Web Store
 
 1. Update the `version` field in `manifest.json`.
-2. Run `npm run build:zip` in your terminal. This will automatically generate an `extension.zip` file that securely excludes test fixtures, the visual testbook, and your `node_modules` directory.
+2. Run `npm run build:zip`. This generates `gmail-markdown-v<version>.zip` from an explicit runtime-file allowlist, excluding tests, development files, old archives, and `node_modules`.
 3. Upload to the [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole).
 
 ## License

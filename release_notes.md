@@ -1,5 +1,8 @@
-### Changes in 1.3.0
-- **Formatted Blockquotes:** Preserved blockquote styles in Gmail using inline CSS.
-- **Code Formatting Improvements:** Restyled inline code elements and added the Ctrl+E toggle shortcut.
-- **Theme Enhancements:** General styling fixes for 'Clean' and 'Notion-style' themes.
-- **Manifest v3:** Updated manifest and project dependencies.
+### Changes in 1.5.0
+
+- Added slash commands for headings, lists, quotes, notes, code blocks, dividers, and editable tables.
+- Added table controls for adding and deleting rows and columns.
+- Added keyboard table navigation and nested-list indentation with Tab and Shift+Tab.
+- Fixed Markdown paste and list-conversion ordering issues in Gmail.
+- Prevented extension table styles from changing Gmail scheduling widgets.
+- Improved heading persistence, slash-menu keyboard scrolling, and note sizing.

@@ -16,6 +16,9 @@
   const PRE_CODE_STYLE = 'font-family:SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace;font-size:0.85em;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;color:#333;margin:0;padding:0;display:block;';
   const INLINE_CODE_STYLE = 'background-color:#f2f2f2;color:#d73a49;padding:2px 4px;border-radius:3px;font-family:monospace;';
   const CALLOUT_INLINE_STYLE = 'display:inline-block;max-width:100%;box-sizing:border-box;background-color:#f2f2f2;padding:10px 14px;border-radius:4px;margin:8px 0;overflow-wrap:anywhere;word-break:break-word;';
+  const TABLE_INLINE_STYLE = 'border-collapse:collapse;border-spacing:0;margin:0.5em 0;max-width:100%;';
+  const TABLE_CELL_INLINE_STYLE = 'border:1px solid #ccc;padding:6px 10px;text-align:left;min-width:80px;overflow-wrap:anywhere;word-break:break-word;';
+  const TABLE_HEADER_INLINE_STYLE = `${TABLE_CELL_INLINE_STYLE}background-color:#f8f9fa;font-weight:bold;`;
 
   const SLASH_COMMANDS = [
     { id: 'quote', label: 'Quote', description: 'Insert a quoted block', aliases: ['blockquote'] },
@@ -26,10 +29,12 @@
     { id: 'bullets', label: 'Bulleted list', description: 'Insert a bullet list', aliases: ['bullet', 'unordered', 'ul'] },
     { id: 'numbered', label: 'Numbered list', description: 'Insert a numbered list', aliases: ['number', 'ordered', 'ol'] },
     { id: 'code', label: 'Code block', description: 'Insert a multiline code block', aliases: ['codeblock', 'pre'] },
+    { id: 'table', label: 'Table', description: 'Insert an editable 2-column table', aliases: ['grid'] },
     { id: 'divider', label: 'Divider', description: 'Insert a horizontal rule', aliases: ['horizontal', 'rule', 'hr'] }
   ];
 
   let slashMenuState = null;
+  let tableToolbarState = null;
 
   const AUTO_FORMATS = [
     { reg: /(\*\*|__)(.+?)\1$/, cmd: 'bold' },
@@ -121,17 +126,17 @@
         ${sel} h1 { font-size: 1.4em !important; font-weight: bold !important; margin: 0.6em 0 !important; }
         ${sel} h2 { font-size: 1.2em !important; font-weight: bold !important; margin: 0.5em 0 !important; }
         ${sel} h3 { font-size: 1.1em !important; font-weight: bold !important; margin: 0.4em 0 !important; }
-        ${sel} table { border-collapse: collapse !important; border-spacing: 0 !important; margin: 0.5em 0 !important; }
-        ${sel} th, ${sel} td { border: 1px solid #ccc !important; padding: 6px 10px !important; text-align: left !important; }
-        ${sel} th { background-color: #f8f9fa !important; font-weight: bold !important; }
+        ${sel} table[data-md-table="1"] { border-collapse: collapse !important; border-spacing: 0 !important; margin: 0.5em 0 !important; }
+        ${sel} table[data-md-table="1"] th, ${sel} table[data-md-table="1"] td { border: 1px solid #ccc !important; padding: 6px 10px !important; text-align: left !important; }
+        ${sel} table[data-md-table="1"] th { background-color: #f8f9fa !important; font-weight: bold !important; }
       `,
       bold: `
         ${sel} h1 { font-size: 1.4em !important; font-weight: bold !important; text-transform: uppercase !important; margin: 0.6em 0 !important; }
         ${sel} h2 { font-size: 1.2em !important; font-weight: bold !important; text-transform: uppercase !important; margin: 0.5em 0 !important; }
         ${sel} h3 { font-size: 1.1em !important; font-weight: bold !important; text-transform: uppercase !important; margin: 0.4em 0 !important; }
-        ${sel} table { border-collapse: collapse !important; border-spacing: 0 !important; margin: 0.5em 0 !important; }
-        ${sel} th, ${sel} td { border: 1px solid #ccc !important; padding: 6px 10px !important; text-align: left !important; }
-        ${sel} th { background-color: #f8f9fa !important; font-weight: bold !important; text-transform: uppercase !important; }
+        ${sel} table[data-md-table="1"] { border-collapse: collapse !important; border-spacing: 0 !important; margin: 0.5em 0 !important; }
+        ${sel} table[data-md-table="1"] th, ${sel} table[data-md-table="1"] td { border: 1px solid #ccc !important; padding: 6px 10px !important; text-align: left !important; }
+        ${sel} table[data-md-table="1"] th { background-color: #f8f9fa !important; font-weight: bold !important; text-transform: uppercase !important; }
       `
     };
     // Map 'strong' to 'bold' if user had it saved previously
@@ -200,6 +205,198 @@
       slashMenuState.menu.parentNode.removeChild(slashMenuState.menu);
     }
     slashMenuState = null;
+  }
+
+  function ensureTableToolbarStyles() {
+    if (document.getElementById('md-table-toolbar-style')) return;
+
+    const style = document.createElement('style');
+    style.id = 'md-table-toolbar-style';
+    style.textContent = `
+      [data-md-table-toolbar="1"] {
+        position: fixed;
+        z-index: 2147483647;
+        display: flex;
+        gap: 4px;
+        padding: 4px;
+        background: #fff;
+        border: 1px solid #dadce0;
+        border-radius: 7px;
+        box-shadow: 0 4px 12px rgba(60, 64, 67, 0.24);
+        box-sizing: border-box;
+        font-family: Arial, sans-serif;
+      }
+      [data-md-table-action] {
+        padding: 5px 8px;
+        color: #3c4043;
+        background: transparent;
+        border: 0;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        line-height: 18px;
+        white-space: nowrap;
+      }
+      [data-md-table-action]:hover,
+      [data-md-table-action]:focus {
+        color: #174ea6;
+        background: #e8f0fe;
+        outline: none;
+      }
+    `;
+    document.documentElement.appendChild(style);
+  }
+
+  function closeTableToolbar() {
+    if (!tableToolbarState) return;
+    if (tableToolbarState.toolbar.parentNode) tableToolbarState.toolbar.remove();
+    tableToolbarState = null;
+  }
+
+  function positionTableToolbar(state) {
+    const tableRect = state.table.getBoundingClientRect();
+    const toolbarRect = state.toolbar.getBoundingClientRect();
+    const maxLeft = Math.max(8, window.innerWidth - toolbarRect.width - 8);
+    const maxTop = Math.max(8, window.innerHeight - toolbarRect.height - 8);
+    const above = tableRect.top - toolbarRect.height - 6;
+    let left = Math.max(8, Math.min(tableRect.right - toolbarRect.width, maxLeft));
+    let top;
+
+    if (above >= 8) {
+      top = above;
+    } else if (tableRect.right + toolbarRect.width + 6 <= window.innerWidth - 8) {
+      left = tableRect.right + 6;
+      top = tableRect.top;
+    } else if (tableRect.left - toolbarRect.width - 6 >= 8) {
+      left = tableRect.left - toolbarRect.width - 6;
+      top = tableRect.top;
+    } else {
+      top = tableRect.bottom + 6;
+    }
+
+    state.toolbar.style.left = `${left}px`;
+    state.toolbar.style.top = `${Math.max(8, Math.min(top, maxTop))}px`;
+  }
+
+  function placeCaretAfterTable(table, editor) {
+    let trailingLine = table.nextElementSibling;
+    if (!trailingLine || trailingLine.tagName !== 'DIV') {
+      trailingLine = document.createElement('div');
+      trailingLine.innerHTML = '<br>';
+      table.parentNode.insertBefore(trailingLine, table.nextSibling);
+    }
+
+    table.remove();
+    editor.focus();
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.setStart(trailingLine, 0);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
+  function applySelectedTableAction(action) {
+    if (!tableToolbarState) return;
+
+    const { cell, table, editor } = tableToolbarState;
+    if (!cell.isConnected || !table.isConnected || !editor.isConnected) {
+      closeTableToolbar();
+      return;
+    }
+
+    const row = cell.parentElement;
+    const rowIndex = Array.from(table.rows).indexOf(row);
+    const columnIndex = Array.from(row.cells).indexOf(cell);
+
+    if (action === 'add-row') {
+      const newRow = document.createElement('tr');
+      const columnCount = table.rows[0] ? table.rows[0].cells.length : row.cells.length;
+      for (let currentColumnIndex = 0; currentColumnIndex < columnCount; currentColumnIndex += 1) {
+        const newCell = document.createElement('td');
+        newCell.setAttribute('style', TABLE_CELL_INLINE_STYLE);
+        newCell.appendChild(document.createElement('br'));
+        newRow.appendChild(newCell);
+      }
+      row.parentNode.insertBefore(newRow, row.nextSibling);
+      placeCaretInTableCell(newRow.cells[Math.min(columnIndex, newRow.cells.length - 1)]);
+      updateTableToolbar();
+    } else if (action === 'add-column') {
+      let targetCell = null;
+      Array.from(table.rows).forEach((tableRow, currentRowIndex) => {
+        const isHeaderRow = tableRow.cells[0] && tableRow.cells[0].tagName === 'TH';
+        const newCell = document.createElement(isHeaderRow ? 'th' : 'td');
+        newCell.setAttribute(
+          'style',
+          isHeaderRow ? TABLE_HEADER_INLINE_STYLE : TABLE_CELL_INLINE_STYLE
+        );
+        newCell.appendChild(document.createElement('br'));
+        const nextCell = tableRow.cells[columnIndex + 1];
+        tableRow.insertBefore(newCell, nextCell || null);
+        if (currentRowIndex === rowIndex) targetCell = newCell;
+      });
+      placeCaretInTableCell(targetCell);
+      updateTableToolbar();
+    } else if (action === 'row') {
+      if (table.rows.length <= 1) {
+        closeTableToolbar();
+        placeCaretAfterTable(table, editor);
+      } else {
+        row.remove();
+        const targetRow = table.rows[Math.min(rowIndex, table.rows.length - 1)];
+        placeCaretInTableCell(targetRow.cells[Math.min(columnIndex, targetRow.cells.length - 1)]);
+        updateTableToolbar();
+      }
+    } else if (action === 'column') {
+      const columnCount = table.rows[0] ? table.rows[0].cells.length : 0;
+      if (columnCount <= 1) {
+        closeTableToolbar();
+        placeCaretAfterTable(table, editor);
+      } else {
+        Array.from(table.rows).forEach(tableRow => {
+          if (tableRow.cells[columnIndex]) tableRow.deleteCell(columnIndex);
+        });
+        const targetRow = table.rows[Math.min(rowIndex, table.rows.length - 1)];
+        placeCaretInTableCell(targetRow.cells[Math.min(columnIndex, targetRow.cells.length - 1)]);
+        updateTableToolbar();
+      }
+    }
+
+    editor.dispatchEvent(new window.Event('input', { bubbles: true }));
+  }
+
+  function updateTableToolbar() {
+    const cell = getSelectedTableCell();
+    const table = cell && cell.closest('table[data-md-table="1"]');
+    const editor = table && table.closest(SELECTOR);
+    if (!cell || !table || !editor) {
+      closeTableToolbar();
+      return;
+    }
+
+    ensureTableToolbarStyles();
+    let toolbar = tableToolbarState && tableToolbarState.toolbar;
+    if (!toolbar) {
+      toolbar = document.createElement('div');
+      toolbar.setAttribute('data-md-table-toolbar', '1');
+      toolbar.setAttribute('role', 'toolbar');
+      toolbar.setAttribute('aria-label', 'Table actions');
+      toolbar.innerHTML = [
+        '<button type="button" data-md-table-action="add-row">Add row</button>',
+        '<button type="button" data-md-table-action="add-column">Add column</button>',
+        '<button type="button" data-md-table-action="row">Delete row</button>',
+        '<button type="button" data-md-table-action="column">Delete column</button>'
+      ].join('');
+      toolbar.addEventListener('mousedown', event => event.preventDefault());
+      toolbar.addEventListener('click', event => {
+        const button = event.target.closest('[data-md-table-action]');
+        if (button) applySelectedTableAction(button.getAttribute('data-md-table-action'));
+      });
+      document.body.appendChild(toolbar);
+    }
+
+    tableToolbarState = { toolbar, cell, table, editor };
+    positionTableToolbar(tableToolbarState);
   }
 
   function getSlashCommandContext(body) {
@@ -349,6 +546,32 @@
       pre.appendChild(document.createElement('br'));
       wrapper.appendChild(pre);
       return { node: wrapper, caretTarget: pre, caretOffset: 0 };
+    }
+
+    if (commandId === 'table') {
+      const table = document.createElement('table');
+      table.setAttribute('data-md-table', '1');
+      table.setAttribute('style', TABLE_INLINE_STYLE);
+      const body = document.createElement('tbody');
+      table.appendChild(body);
+
+      let firstHeader = null;
+      for (let rowIndex = 0; rowIndex < 3; rowIndex += 1) {
+        const row = document.createElement('tr');
+        for (let columnIndex = 0; columnIndex < 2; columnIndex += 1) {
+          const cell = document.createElement(rowIndex === 0 ? 'th' : 'td');
+          cell.setAttribute(
+            'style',
+            rowIndex === 0 ? TABLE_HEADER_INLINE_STYLE : TABLE_CELL_INLINE_STYLE
+          );
+          cell.appendChild(document.createElement('br'));
+          if (!firstHeader) firstHeader = cell;
+          row.appendChild(cell);
+        }
+        body.appendChild(row);
+      }
+
+      return { node: table, caretTarget: firstHeader, caretOffset: 0 };
     }
 
     if (commandId === 'divider') {
@@ -821,6 +1044,57 @@
     sel.addRange(range);
   }
 
+  function getEditingBlock(range, body) {
+    let block = range.startContainer;
+    if (block.nodeType === Node.TEXT_NODE) block = block.parentNode;
+    while (block && block !== body && !block.matches('div, p')) block = block.parentNode;
+    return block && block !== body ? block : body;
+  }
+
+  function getTextBeforeCaret(range, block) {
+    try {
+      const prefixRange = document.createRange();
+      prefixRange.setStart(block, 0);
+      prefixRange.setEnd(range.startContainer, range.startOffset);
+      return prefixRange.toString().replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+    } catch (error) {
+      return '';
+    }
+  }
+
+  function trackTypedBlockPrefix(event, body) {
+    if (event.key === ' ') return;
+    if (event.ctrlKey || event.metaKey || event.altKey || event.key.length !== 1) {
+      body._mdTypedBlockPrefix = null;
+      return;
+    }
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) {
+      body._mdTypedBlockPrefix = null;
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    if (!body.contains(range.startContainer)) {
+      body._mdTypedBlockPrefix = null;
+      return;
+    }
+
+    const block = getEditingBlock(range, body);
+    const prospectivePrefix = getTextBeforeCaret(range, block) + event.key;
+    if (/^(?:#{1,3}|\*|-|>|\d+\.?)$/.test(prospectivePrefix)) {
+      body._mdTypedBlockPrefix = { block, prefix: prospectivePrefix };
+    } else {
+      body._mdTypedBlockPrefix = null;
+    }
+  }
+
+  function wasBlockPrefixTyped(body, range, prefix) {
+    const tracked = body._mdTypedBlockPrefix;
+    return !!tracked && tracked.block === getEditingBlock(range, body) && tracked.prefix === prefix;
+  }
+
   function applyAutoFormat(e, body) {
     if (e.key !== ' ' && e.key !== 'Enter' && e.key !== 'Backspace') return;
 
@@ -904,6 +1178,7 @@
       const isStartOfLine = (textBefore.trimStart() === textBefore);
       const hasTextAfterCursor = hasTextAfterCursorInBlock(range, body);
       const isUnorderedListPrefix = trimmedPrefix === '*' || trimmedPrefix === '-';
+      const isTypedBlockPrefix = wasBlockPrefixTyped(body, range, trimmedPrefix);
 
       // Handle --- + space as horizontal rule
       if (!hasTextAfterCursor && trimmedPrefix === '---') {
@@ -920,7 +1195,7 @@
       }
 
       if (isStartOfLine &&
-        (!hasTextAfterCursor || isUnorderedListPrefix) &&
+        (!hasTextAfterCursor || isUnorderedListPrefix || isTypedBlockPrefix) &&
         trimmedPrefix.length > 0) {
         let command = null;
         let arg = null;
@@ -934,6 +1209,7 @@
         else if (trimmedPrefix === '>') { command = 'insertQuoteDiv'; prefixLen = 1; }
 
         if (command === 'insertQuoteDiv') {
+          body._mdTypedBlockPrefix = null;
           e.preventDefault();
           deletePrecise(container, offset, prefixLen);
           splitBlockAtCursor(body);
@@ -973,6 +1249,7 @@
           }
           return;
         } else if (command) {
+          body._mdTypedBlockPrefix = null;
           e.preventDefault();
           deletePrecise(container, offset, prefixLen);
           if (command === 'insertUnorderedList' || command === 'insertOrderedList') {
@@ -1127,6 +1404,7 @@
       if (handleSlashCommandKeydown(e, body)) return;
 
       if (opts.autoFormat) {
+        trackTypedBlockPrefix(e, body);
         applyAutoFormat(e, body);
       }
 
@@ -1206,10 +1484,17 @@
       if (['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) {
         updateSlashCommandMenu(body);
       }
+      updateTableToolbar();
     });
-    body.addEventListener('mouseup', () => updateSlashCommandMenu(body));
+    body.addEventListener('mouseup', () => {
+      updateSlashCommandMenu(body);
+      updateTableToolbar();
+    });
     body.addEventListener('blur', () => {
-      window.setTimeout(() => closeSlashCommandMenu(body), 0);
+      window.setTimeout(() => {
+        closeSlashCommandMenu(body);
+        if (tableToolbarState && tableToolbarState.editor === body) closeTableToolbar();
+      }, 0);
     }, true);
   }
 
@@ -1287,6 +1572,59 @@
     return true;
   }
 
+  function getSelectedTableCell() {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return null;
+
+    let node = selection.getRangeAt(0).startContainer;
+    if (node.nodeType === Node.TEXT_NODE) node = node.parentNode;
+    return node.closest ? node.closest('th, td') : null;
+  }
+
+  function placeCaretInTableCell(cell) {
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(cell);
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
+  function handleTableTab(event) {
+    if (event.key !== 'Tab') return false;
+
+    const cell = getSelectedTableCell();
+    const table = cell && cell.closest('table[data-md-table="1"]');
+    const editor = table && table.closest(SELECTOR);
+    if (!cell || !table || !editor) return false;
+
+    const cells = Array.from(table.querySelectorAll('th, td'));
+    const currentIndex = cells.indexOf(cell);
+    if (currentIndex < 0) return false;
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+
+    let targetCell = event.shiftKey ? cells[currentIndex - 1] : cells[currentIndex + 1];
+    if (!targetCell && !event.shiftKey) {
+      const columnCount = table.rows[0] ? table.rows[0].cells.length : 2;
+      const row = document.createElement('tr');
+      for (let columnIndex = 0; columnIndex < columnCount; columnIndex += 1) {
+        const newCell = document.createElement('td');
+        newCell.setAttribute('style', TABLE_CELL_INLINE_STYLE);
+        newCell.appendChild(document.createElement('br'));
+        row.appendChild(newCell);
+      }
+      (table.tBodies[0] || table).appendChild(row);
+      targetCell = row.cells[0];
+      editor.dispatchEvent(new window.Event('input', { bubbles: true }));
+    }
+
+    if (targetCell) placeCaretInTableCell(targetCell);
+    return true;
+  }
+
   function attachPasteListener(body, opts) {
     if (body._mdPasteAttached) return;
     body._mdPasteAttached = true;
@@ -1322,6 +1660,9 @@
       if (slashMenuState && !slashMenuState.body.isConnected) {
         closeSlashCommandMenu();
       }
+      if (tableToolbarState && !tableToolbarState.editor.isConnected) {
+        closeTableToolbar();
+      }
       const editors = document.querySelectorAll(SELECTOR);
       editors.forEach(body => {
         attachShortcutListener(body, opts);
@@ -1344,6 +1685,10 @@
   // so spacing matches Gmail's native contenteditable behavior
   function gmailifyHtml(html) {
     return html
+      .replace(/<table(\s[^>]*)?>/gi, (match, attributes = '') => {
+        if (/data-md-table\s*=/.test(attributes)) return match;
+        return `<table data-md-table="1"${attributes}>`;
+      })
       // Replace <blockquote> with a styled <div> — Gmail's renderer strips styles from
       // <blockquote> elements, so a plain div with inline styles is more reliable.
       .replace(/<blockquote[^>]*>/gi, `<div style="${BLOCKQUOTE_INLINE_STYLE}">`)
@@ -1404,8 +1749,20 @@
 
       // Capture Tab early before Gmail's focus navigation can intercept it 
       window.addEventListener('keydown', (e) => {
-        handleListTab(e);
+        if (handleTableTab(e)) {
+          updateTableToolbar();
+        } else {
+          handleListTab(e);
+        }
       }, true); // useCapture: true is critical here
+
+      document.addEventListener('selectionchange', updateTableToolbar);
+      window.addEventListener('resize', () => {
+        if (tableToolbarState) positionTableToolbar(tableToolbarState);
+      });
+      window.addEventListener('scroll', () => {
+        if (tableToolbarState) positionTableToolbar(tableToolbarState);
+      }, true);
     });
   }
 

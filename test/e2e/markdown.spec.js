@@ -306,6 +306,48 @@ test('adding a space after a pasted bullet marker formats only that line', async
   expect(state.plainLines).toEqual(['test', 'dqzdqz']);
 });
 
+test('typing a heading prefix at the start of a pasted line formats that line', async ({ page }) => {
+  await setupPage(page);
+  await pasteText(page, 'first line\nsecond line\nthird line');
+  await page.locator(EDITOR).evaluate((editor) => {
+    const secondLine = editor.children[1];
+    const range = document.createRange();
+    range.setStart(secondLine.firstChild, 0);
+    range.collapse(true);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+  });
+  await page.keyboard.type('##');
+  await page.keyboard.press('Space');
+
+  const children = await page.locator(EDITOR).evaluate((editor) =>
+    Array.from(editor.children).map((child) => ({ tag: child.tagName, text: child.innerText }))
+  );
+  expect(children[0]).toEqual({ tag: 'DIV', text: 'first line' });
+  expect(children[1]).toEqual({ tag: 'H2', text: 'second line' });
+  expect(children.some((child) => child.text === 'third line')).toBe(true);
+});
+
+test('typing an ordered-list prefix at the start of a pasted line formats that line', async ({ page }) => {
+  await setupPage(page);
+  await pasteText(page, 'first line\nsecond line\nthird line');
+  await page.locator(EDITOR).evaluate((editor) => {
+    const secondLine = editor.children[1];
+    const range = document.createRange();
+    range.setStart(secondLine.firstChild, 0);
+    range.collapse(true);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+  });
+  await page.keyboard.type('1.');
+  await page.keyboard.press('Space');
+
+  await expect(page.locator(`${EDITOR} > ol > li`)).toHaveText('second line');
+  const text = await page.locator(EDITOR).evaluate((editor) => editor.innerText);
+  expect(text).toContain('first line');
+  expect(text).toContain('third line');
+});
+
 test('converting an edited pasted line to a bullet keeps it in place', async ({ page }) => {
   await setupPage(page);
   await pasteText(page, [
@@ -522,6 +564,7 @@ test('typing "/" shows every available block command', async ({ page }) => {
     'bullets',
     'numbered',
     'code',
+    'table',
     'divider',
   ]);
 });
@@ -571,7 +614,7 @@ test('ArrowDown scrolls the selected slash command into view', async ({ page }) 
   await setupPage(page);
   await page.keyboard.type('/');
 
-  for (let index = 0; index < 8; index += 1) {
+  for (let index = 0; index < 9; index += 1) {
     await page.keyboard.press('ArrowDown');
   }
 
@@ -669,6 +712,175 @@ test('/divider inserts a horizontal rule and moves typing to the following line'
   await expect(page.locator(EDITOR)).not.toContainText('/divider');
 });
 
+test('/table inserts an editable two-column table with headers and two rows', async ({ page }) => {
+  await setupPage(page);
+  await page.keyboard.type('/table');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Name');
+
+  const table = page.locator(`${EDITOR} table[data-md-table="1"]`);
+  const toolbar = page.locator('[data-md-table-toolbar="1"]');
+  await expect(table).toBeAttached();
+  await expect(toolbar).toBeVisible();
+  await expect(page.locator(`${EDITOR} [data-md-table-toolbar="1"]`)).toHaveCount(0);
+  await expect(table.locator('th')).toHaveCount(2);
+  await expect(table.locator('td')).toHaveCount(4);
+  await expect(table.locator('th').first()).toHaveText('Name');
+  await expect(page.locator(EDITOR)).not.toContainText('/table');
+
+  const styles = await table.evaluate((element) => {
+    const header = element.querySelector('th');
+    const cell = element.querySelector('td');
+    return {
+      collapse: getComputedStyle(element).borderCollapse,
+      headerBorder: getComputedStyle(header).borderTopWidth,
+      headerBackground: getComputedStyle(header).backgroundColor,
+      cellPadding: getComputedStyle(cell).paddingLeft,
+    };
+  });
+  expect(styles.collapse).toBe('collapse');
+  expect(styles.headerBorder).toBe('1px');
+  expect(styles.headerBackground).not.toBe('rgba(0, 0, 0, 0)');
+  expect(styles.cellPadding).toBe('10px');
+});
+
+test('Tab moves through table cells and adds a row from the final cell', async ({ page }) => {
+  await setupPage(page);
+  await page.keyboard.type('/table');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Name');
+  await page.keyboard.press('Tab');
+  await page.keyboard.type('Value');
+
+  const table = page.locator(`${EDITOR} table[data-md-table="1"]`);
+  await expect(table.locator('th')).toHaveText(['Name', 'Value']);
+
+  await table.evaluate((element) => {
+    const lastCell = element.querySelector('tr:last-child td:last-child');
+    const range = document.createRange();
+    range.setStart(lastCell, 0);
+    range.collapse(true);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+  });
+  await page.keyboard.press('Tab');
+  await page.keyboard.type('New row');
+
+  await expect(table.locator('td')).toHaveCount(6);
+  await expect(table.locator('tr:last-child td').first()).toHaveText('New row');
+});
+
+test('table toolbar deletes the selected row and keeps editing in the table', async ({ page }) => {
+  await setupPage(page);
+  await page.keyboard.type('/table');
+  await page.keyboard.press('Enter');
+
+  const table = page.locator(`${EDITOR} table[data-md-table="1"]`);
+  const toolbar = page.locator('[data-md-table-toolbar="1"]');
+  await table.locator('tr').nth(1).locator('td').first().click();
+  await expect(toolbar).toBeVisible();
+  await toolbar.locator('[data-md-table-action="row"]').click();
+
+  await expect(table.locator('tr')).toHaveCount(2);
+  await expect(toolbar).toBeVisible();
+  await page.keyboard.type('Remaining');
+  await expect(table.locator('tr').nth(1).locator('td').first()).toHaveText('Remaining');
+});
+
+test('table toolbar adds a column after the selected column and focuses it', async ({ page }) => {
+  await setupPage(page);
+  await page.keyboard.type('/table');
+  await page.keyboard.press('Enter');
+
+  const table = page.locator(`${EDITOR} table[data-md-table="1"]`);
+  const toolbar = page.locator('[data-md-table-toolbar="1"]');
+  await toolbar.locator('[data-md-table-action="add-column"]').click();
+  await page.keyboard.type('New column');
+
+  await expect(table.locator('th')).toHaveCount(3);
+  await expect(table.locator('td')).toHaveCount(6);
+  await expect(table.locator('th').nth(1)).toHaveText('New column');
+
+  const styles = await table.locator('th').nth(1).evaluate((cell) => ({
+    border: getComputedStyle(cell).borderTopWidth,
+    background: getComputedStyle(cell).backgroundColor,
+    padding: getComputedStyle(cell).paddingLeft,
+  }));
+  expect(styles.border).toBe('1px');
+  expect(styles.background).not.toBe('rgba(0, 0, 0, 0)');
+  expect(styles.padding).toBe('10px');
+});
+
+test('table toolbar adds a body row below the selected row and focuses it', async ({ page }) => {
+  await setupPage(page);
+  await page.keyboard.type('/table');
+  await page.keyboard.press('Enter');
+
+  const table = page.locator(`${EDITOR} table[data-md-table="1"]`);
+  const toolbar = page.locator('[data-md-table-toolbar="1"]');
+  await toolbar.locator('[data-md-table-action="add-row"]').click();
+  await page.keyboard.type('New row');
+
+  await expect(table.locator('tr')).toHaveCount(4);
+  await expect(table.locator('th')).toHaveCount(2);
+  await expect(table.locator('td')).toHaveCount(6);
+  await expect(table.locator('tr').nth(1).locator('td').first()).toHaveText('New row');
+
+  const styles = await table.locator('tr').nth(1).locator('td').first().evaluate((cell) => ({
+    border: getComputedStyle(cell).borderTopWidth,
+    padding: getComputedStyle(cell).paddingLeft,
+  }));
+  expect(styles.border).toBe('1px');
+  expect(styles.padding).toBe('10px');
+});
+
+test('table toolbar deletes the selected column from every row', async ({ page }) => {
+  await setupPage(page);
+  await page.keyboard.type('/table');
+  await page.keyboard.press('Enter');
+
+  const table = page.locator(`${EDITOR} table[data-md-table="1"]`);
+  const toolbar = page.locator('[data-md-table-toolbar="1"]');
+  await toolbar.locator('[data-md-table-action="column"]').click();
+
+  await expect(table.locator('tr')).toHaveCount(3);
+  await expect(table.locator('th')).toHaveCount(1);
+  await expect(table.locator('td')).toHaveCount(2);
+  await page.keyboard.type('Only column');
+  await expect(table.locator('th').first()).toHaveText('Only column');
+});
+
+test('deleting the final table column removes the table and keeps a writable line', async ({ page }) => {
+  await setupPage(page);
+  await page.keyboard.type('/table');
+  await page.keyboard.press('Enter');
+
+  const toolbar = page.locator('[data-md-table-toolbar="1"]');
+  await toolbar.locator('[data-md-table-action="column"]').click();
+  await toolbar.locator('[data-md-table-action="column"]').click();
+  await page.keyboard.type('After table');
+
+  await expect(page.locator(`${EDITOR} table[data-md-table="1"]`)).toHaveCount(0);
+  await expect(toolbar).toHaveCount(0);
+  await expect(page.locator(EDITOR)).toContainText('After table');
+});
+
+test('deleting the final table row removes the table and keeps a writable line', async ({ page }) => {
+  await setupPage(page);
+  await page.keyboard.type('/table');
+  await page.keyboard.press('Enter');
+
+  const toolbar = page.locator('[data-md-table-toolbar="1"]');
+  await toolbar.locator('[data-md-table-action="row"]').click();
+  await toolbar.locator('[data-md-table-action="row"]').click();
+  await toolbar.locator('[data-md-table-action="row"]').click();
+  await page.keyboard.type('After table');
+
+  await expect(page.locator(`${EDITOR} table[data-md-table="1"]`)).toHaveCount(0);
+  await expect(toolbar).toHaveCount(0);
+  await expect(page.locator(EDITOR)).toContainText('After table');
+});
+
 test('legacy heading names remain searchable aliases', async ({ page }) => {
   await setupPage(page);
   await page.keyboard.type('/title');
@@ -704,6 +916,34 @@ test('plain-text paste keeps HTML-like content literal', async ({ page }) => {
 
   await expect(page.locator(`${EDITOR} img`)).toHaveCount(0);
   await expect(page.locator(EDITOR)).toHaveText('<img src=x>');
+});
+
+test('theme styles do not modify Gmail native scheduling tables', async ({ page }) => {
+  await setupPage(page);
+  const styles = await page.locator(EDITOR).evaluate((editor) => {
+    editor.innerHTML = [
+      '<table data-gmail-scheduling="1"><tbody><tr>',
+      '<td id="gmail-slot">10:30 - 11:30</td>',
+      '</tr></tbody></table>',
+      '<table data-md-table="1"><tbody><tr>',
+      '<td id="markdown-cell">Markdown</td>',
+      '</tr></tbody></table>',
+    ].join('');
+
+    const gmailSlot = getComputedStyle(editor.querySelector('#gmail-slot'));
+    const markdownCell = getComputedStyle(editor.querySelector('#markdown-cell'));
+    return {
+      gmailBorder: gmailSlot.borderTopWidth,
+      gmailPadding: gmailSlot.paddingLeft,
+      markdownBorder: markdownCell.borderTopWidth,
+      markdownPadding: markdownCell.paddingLeft,
+    };
+  });
+
+  expect(styles.gmailBorder).toBe('0px');
+  expect(styles.gmailPadding).toBe('1px');
+  expect(styles.markdownBorder).toBe('1px');
+  expect(styles.markdownPadding).toBe('10px');
 });
 
 // ─── Markdown conversion shortcut ────────────────────────────────────────────

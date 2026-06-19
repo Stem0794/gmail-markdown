@@ -1,12 +1,12 @@
 {
   "name": "gmail-markdown-extension",
-  "version": "1.4.3",
+  "version": "1.5.0",
   "description": "Gmail Markdown Chrome extension",
   "private": true,
   "scripts": {
     "test": "mocha",
     "test:e2e": "playwright test",
-    "build:zip": "zip -r extension.zip . -x '*.git*' 'test/*' 'node_modules/*' 'extension.zip' '.npmignore' '*playwright*' 'package-lock.json' 'package.json'"
+    "build:zip": "sh scripts/build-zip.sh"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",

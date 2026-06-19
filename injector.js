@@ -11,6 +11,11 @@
 
   function gmailifyHtml(html) {
     return html
+      .replace(/<table(\s[^>]*)?>/gi, function (match, attributes) {
+        attributes = attributes || '';
+        if (/data-md-table\s*=/.test(attributes)) return match;
+        return '<table data-md-table="1"' + attributes + '>';
+      })
       .replace(/<blockquote[^>]*>/gi, '<div style="' + BLOCKQUOTE_INLINE_STYLE + '">')
       .replace(/<\/blockquote>/gi, '</div>')
       .replace(/<pre[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/gi, '<div style="' + PRE_WRAPPER_STYLE + '"><pre style="' + PRE_CODE_STYLE + '">$1</pre></div>')

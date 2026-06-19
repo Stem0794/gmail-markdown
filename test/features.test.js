@@ -82,6 +82,29 @@ describe('Extension features', function() {
     assert.notInclude(style.textContent, 'blockquote {');
   });
 
+  it('applyTheme scopes table styling to extension-generated Markdown tables', function() {
+    const script = loadScript();
+    script.applyTheme('default');
+    const style = document.getElementById('md-theme-style');
+
+    assert.include(style.textContent, 'table[data-md-table="1"]');
+    assert.notInclude(
+      style.textContent,
+      'div[aria-label="Message Body"][contenteditable="true"] table {'
+    );
+    assert.notInclude(
+      style.textContent,
+      'div[aria-label="Message Body"][contenteditable="true"] th, div[aria-label="Message Body"][contenteditable="true"] td {'
+    );
+  });
+
+  it('gmailifyHtml marks Markdown tables for scoped styling', function() {
+    const { gmailifyHtml } = loadScript();
+    const output = gmailifyHtml('<table><tr><td>Slot</td></tr></table>');
+
+    assert.include(output, '<table data-md-table="1">');
+  });
+
   it('gmailifyHtml implements text wrapping in code blocks', function() {
     const { gmailifyHtml } = loadScript();
     const input = '<pre><code>long_unbroken_text_that_should_wrap</code></pre>';

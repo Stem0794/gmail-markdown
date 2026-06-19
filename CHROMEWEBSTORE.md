@@ -1,6 +1,6 @@
 # Chrome Web Store Listing — Markdown for Gmail
 
-> Last Updated: 2026-05-27
+> Last Updated: 2026-06-15
 
 ## Store Listing
 
@@ -11,24 +11,51 @@ Markdown for Gmail
 Write Gmail messages in Markdown and convert them to rich text via right-click or shortcut.
 
 **Detailed Description**
-Write your Gmail messages using clean, readable Markdown syntax and instantly convert them to beautifully formatted rich text! Perfect for developers, technical writers, and anyone who wants to write emails faster without clicking format buttons.
+Tired of Gmail's limited formatting toolbar?
 
-Key Features:
-- Complete Markdown support: headings, bold, italic, lists, blockquotes, inline code, and code blocks with syntax highlighting.
-- Native Integration: Seamlessly integrates into Gmail's compose window.
-- Convenient Shortcuts: Convert your markdown using `Ctrl+Shift+M` (`Cmd+Shift+M` on macOS) or the context menu.
-- Convert back: Toggle back to markdown with a simple shortcut if you need to edit.
-- Thread Copy: Copy entire email threads in clean markdown for documentation or sharing.
-- Clean Styling: High-quality, readable styling applied to all rendered elements.
+Markdown for Gmail lets you write messages using familiar Markdown syntax, apply formatting while you type, and convert drafts into clean rich text with one shortcut.
 
-How to Use:
-1. Open Gmail and click "Compose" to start a new email.
-2. Write your email message using Markdown syntax (e.g. `**bold text**`, `*italic*`, `# Heading`).
-3. Press `Ctrl+Shift+M` (or right-click and choose "Convert Markdown") to render the Markdown to rich text.
-4. If you need to edit the Markdown again, press the shortcut again to revert the rendering!
+Built for developers, writers, and keyboard-focused users, it adds powerful formatting tools directly to Gmail without sending your content to an external service.
 
-Privacy/permissions note:
-This extension runs completely locally in your browser. It does not collect, track, or transmit any user data, email contents, or credentials off your device.
+KEY FEATURES
+
+• Live auto-formatting: Turn headings, lists, blockquotes, bold, italic, strikethrough, inline code, emoji shortcodes, and dividers into formatted content as you type.
+
+• Slash commands: Type `/` to insert H1-H3 headings, bullet and numbered lists, quotes, notes, code blocks, dividers, and editable tables.
+
+• Editable tables: Add or remove rows and columns, move between cells with Tab and Shift+Tab, and create new rows from the keyboard.
+
+• Full Markdown conversion: Convert an entire draft or selected text using Ctrl+Shift+M or the Gmail context menu.
+
+• HTML to Markdown: Convert formatted Gmail content back to Markdown with Ctrl+Shift+H.
+
+• GitHub Flavored Markdown: Supports tables, task lists, strikethrough, and other GFM syntax.
+
+• Better list editing: Nest and outdent list items using Tab and Shift+Tab.
+
+• Code formatting: Create dedicated code blocks or wrap selected text as inline code with Ctrl+E.
+
+• Emoji shortcodes: Type codes such as `:rocket:` or `:smile:` followed by a space.
+
+• Paste-friendly editing: Multiline pasted content keeps its order and can be formatted line by line.
+
+• Copy threads as Markdown: Export Gmail conversations as clean Markdown without signatures or duplicated quoted replies.
+
+• Gmail-compatible styling: Formatting is designed to survive Gmail rendering without interfering with native features such as scheduling availability.
+
+HOW TO USE
+
+1. Open a Gmail compose window.
+2. Type Markdown or enter `/` to open the formatting menu.
+3. Use live formatting as you type, or press Ctrl+Shift+M to convert Markdown into rich text.
+4. Select text and press Ctrl+E for inline code.
+5. Press Ctrl+Shift+H when you need to convert formatted content back to Markdown.
+
+PRIVACY AND SECURITY
+
+All formatting and conversion happen locally in your browser. Markdown for Gmail does not collect, track, sell, or transmit your email content, credentials, or personal data to external servers.
+
+Lightweight, keyboard-friendly, and optimized for Gmail.
 
 **Category**
 Productivity
@@ -102,6 +129,7 @@ https://github.com/Stem0794/gmail-markdown
 
 | Version | Date | Changes | Status |
 |---------|------|---------|--------|
+| 1.5.0 | 2026-06-15 | Add slash commands, editable tables, nested lists, paste fixes, and Gmail scheduling compatibility. | Ready to upload |
 | 1.4.3 | 2026-06-01 | Add Thread Copy support, UI enhancements and performance updates. | Draft |
 | 1.4.2 | 2026-05-27 | Initial release of Thread Copy support and hotfixes. | Published |
 | 1.4.1 | 2026-05-27 | Initial release of Thread Copy support and hotfixes. | Published |
