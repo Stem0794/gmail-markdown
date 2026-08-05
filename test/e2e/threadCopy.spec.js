@@ -90,17 +90,49 @@ test.describe('Copy Thread as Markdown button', () => {
       await expect(page.locator('#md-copy-thread-btn')).toBeAttached();
     });
 
-    test('appears immediately after the h2.hP subject element', async ({ page }) => {
+    test('uses a dedicated action row immediately after the h2.hP subject element', async ({ page }) => {
       await setupThreadPage(page, {
         subject: 'Hello',
         messages: [{ name: 'Alice', body: '<div>Hi</div>' }],
       });
-      const isNextSibling = await page.evaluate(() => {
+      const placement = await page.evaluate(() => {
         const h2  = document.querySelector('h2.hP');
+        const actions = document.getElementById('md-copy-thread-actions');
         const btn = document.getElementById('md-copy-thread-btn');
-        return h2 && btn && h2.nextElementSibling === btn;
+        return {
+          isNextSibling: Boolean(h2 && actions && h2.nextElementSibling === actions),
+          isInActionRow: Boolean(actions && btn && actions.contains(btn)),
+        };
       });
-      expect(isNextSibling).toBe(true);
+      expect(placement).toEqual({ isNextSibling: true, isInActionRow: true });
+    });
+
+    test('has a compact accessible control with a stable block-level action row', async ({ page }) => {
+      await setupThreadPage(page, {
+        subject: 'Hello',
+        messages: [{ name: 'Alice', body: '<div>Hi</div>' }],
+      });
+      const details = await page.evaluate(() => {
+        const actions = document.getElementById('md-copy-thread-actions');
+        const btn = document.getElementById('md-copy-thread-btn');
+        const style = document.getElementById('md-copy-thread-style');
+        return {
+          buttonText: btn.textContent,
+          type: btn.type,
+          ariaLabel: btn.getAttribute('aria-label'),
+          hasIcon: Boolean(btn.querySelector('.md-copy-thread-btn__icon')),
+          actionDisplay: getComputedStyle(actions).display,
+          hasStyles: Boolean(style),
+        };
+      });
+      expect(details).toEqual({
+        buttonText: 'Copy Markdown',
+        type: 'button',
+        ariaLabel: 'Copy Markdown',
+        hasIcon: true,
+        actionDisplay: 'block',
+        hasStyles: true,
+      });
     });
 
     test('is not injected when there is no h2.hP subject heading', async ({ page }) => {
@@ -266,6 +298,7 @@ test.describe('Copy Thread as Markdown button', () => {
       });
       await clickAndWaitForCopy(page);
       await expect(page.locator('#md-copy-thread-btn')).toHaveText('Copied!');
+      await expect(page.locator('#md-copy-thread-btn .md-copy-thread-btn__icon')).toBeAttached();
     });
 
     test('restores the original label after the feedback timeout', async ({ page }) => {
@@ -276,10 +309,25 @@ test.describe('Copy Thread as Markdown button', () => {
       await clickAndWaitForCopy(page);
       // Wait for the 2 s revert timeout
       await page.waitForFunction(
-        () => document.getElementById('md-copy-thread-btn').textContent === 'Copy thread as Markdown',
+        () => document.getElementById('md-copy-thread-btn').textContent === 'Copy Markdown',
         { timeout: 5000 }
       );
-      await expect(page.locator('#md-copy-thread-btn')).toHaveText('Copy thread as Markdown');
+      await expect(page.locator('#md-copy-thread-btn')).toHaveText('Copy Markdown');
+    });
+
+    test('shows an explicit failure state when both clipboard paths fail', async ({ page }) => {
+      await setupThreadPage(page, {
+        subject: 'Subject',
+        messages: [{ name: 'Alice', body: '<div>Hi</div>' }],
+      });
+      await page.evaluate(() => {
+        navigator.clipboard.writeText = async () => { throw new Error('denied'); };
+        document.execCommand = () => false;
+      });
+      await page.locator('#md-copy-thread-btn').click();
+      await expect(page.locator('#md-copy-thread-btn')).toHaveText('Copy failed');
+      await expect(page.locator('#md-copy-thread-btn')).toHaveAttribute('aria-label', 'Copy failed');
+      await expect(page.locator('#md-copy-thread-btn .md-copy-thread-btn__icon')).toBeAttached();
     });
   });
 });

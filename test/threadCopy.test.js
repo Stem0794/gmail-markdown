@@ -331,13 +331,20 @@ describe('threadCopy', function () {
       assert.exists(document.getElementById('md-copy-thread-btn'));
     });
 
-    it('places the button as the next sibling of the h2.hP subject heading', function () {
+    it('places a dedicated action row after the h2.hP subject heading', function () {
       const h2 = document.querySelector('h2.hP');
-      assert.equal(h2.nextElementSibling.id, 'md-copy-thread-btn');
+      assert.equal(h2.nextElementSibling.id, 'md-copy-thread-actions');
+      assert.equal(h2.nextElementSibling.querySelector('#md-copy-thread-btn'), document.getElementById('md-copy-thread-btn'));
     });
 
-    it('labels the button "Copy thread as Markdown"', function () {
-      assert.equal(document.getElementById('md-copy-thread-btn').textContent, 'Copy thread as Markdown');
+    it('uses a compact label and button semantics', function () {
+      const btn = document.getElementById('md-copy-thread-btn');
+      assert.equal(btn.textContent, 'Copy Markdown');
+      assert.equal(btn.type, 'button');
+      assert.equal(btn.getAttribute('aria-label'), 'Copy Markdown');
+      assert.equal(btn.getAttribute('aria-busy'), 'false');
+      assert.exists(btn.querySelector('.md-copy-thread-btn__icon'));
+      assert.exists(document.getElementById('md-copy-thread-style'));
     });
 
     it('does not create a duplicate button when called a second time', function () {

@@ -1,5 +1,9 @@
 (function () {
   const BTN_ID = 'md-copy-thread-btn';
+  const ACTIONS_ID = 'md-copy-thread-actions';
+  const STYLE_ID = 'md-copy-thread-style';
+  const DEFAULT_LABEL = 'Copy Markdown';
+  const BUTTON_TITLE = 'Copy this email thread as Markdown, without signatures or quoted replies';
 
   // --- HTML to Markdown conversion ---
 
@@ -191,93 +195,197 @@
 
   async function copyToClipboard(text) {
     try {
+      if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+        throw new Error('Clipboard API unavailable');
+      }
       await navigator.clipboard.writeText(text);
+      return;
     } catch (_) {
       const ta = document.createElement('textarea');
       ta.value = text;
       ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;width:1px;height:1px';
       document.body.appendChild(ta);
-      ta.focus();
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
+      try {
+        ta.focus();
+        ta.select();
+        if (typeof document.execCommand !== 'function' || !document.execCommand('copy')) {
+          throw new Error('Clipboard copy command failed');
+        }
+      } finally {
+        document.body.removeChild(ta);
+      }
     }
   }
 
   // --- Button injection ---
 
+  function ensureStyles() {
+    if (document.getElementById(STYLE_ID)) return;
+
+    const style = document.createElement('style');
+    style.id = STYLE_ID;
+    style.textContent = `
+      #${ACTIONS_ID} {
+        box-sizing: border-box;
+        display: block;
+        clear: both;
+        flex: 0 0 100%;
+        margin: 10px 0 8px;
+        max-width: 100%;
+        line-height: 1;
+        width: 100%;
+      }
+      #${ACTIONS_ID} button {
+        align-items: center;
+        appearance: none;
+        background: #fff;
+        border: 1px solid #dadce0;
+        border-radius: 8px;
+        box-sizing: border-box;
+        color: #3c4043;
+        cursor: pointer;
+        display: inline-flex;
+        font-family: "Google Sans", Roboto, Arial, sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        gap: 8px;
+        justify-content: center;
+        line-height: 18px;
+        max-width: 100%;
+        min-height: 34px;
+        padding: 7px 12px;
+        transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease, color .15s ease;
+        vertical-align: middle;
+        white-space: nowrap;
+      }
+      #${ACTIONS_ID} button:hover:not(:disabled) {
+        background: #f8fafd;
+        border-color: #c2e7ff;
+        box-shadow: 0 1px 2px rgba(60, 64, 67, .15);
+      }
+      #${ACTIONS_ID} button:focus-visible {
+        outline: 2px solid #1a73e8;
+        outline-offset: 2px;
+      }
+      #${ACTIONS_ID} button:disabled {
+        cursor: wait;
+        opacity: .72;
+      }
+      #${ACTIONS_ID} button[data-state="busy"] {
+        background: #f8fafd;
+      }
+      #${ACTIONS_ID} button[data-state="success"] {
+        background: #e6f4ea;
+        border-color: #81c995;
+        color: #137333;
+      }
+      #${ACTIONS_ID} button[data-state="error"] {
+        background: #fce8e6;
+        border-color: #f28b82;
+        color: #c5221f;
+      }
+      #${ACTIONS_ID} .md-copy-thread-btn__icon {
+        flex: 0 0 auto;
+        height: 16px;
+        width: 16px;
+      }
+      #${ACTIONS_ID} .md-copy-thread-btn__label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    `;
+    (document.head || document.documentElement).appendChild(style);
+  }
+
+  function createCopyIcon() {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'md-copy-thread-btn__icon');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '1.8');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.innerHTML = '<rect x="9" y="9" width="10" height="10" rx="2"></rect>'
+      + '<path d="M15 9V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"></path>';
+    return svg;
+  }
+
+  function setButtonLabel(btn, label) {
+    const labelEl = btn.querySelector('.md-copy-thread-btn__label');
+    if (labelEl) labelEl.textContent = label;
+    else btn.textContent = label;
+  }
+
+  function clearFeedbackTimer(btn) {
+    if (btn._mdFeedbackTimer) {
+      clearTimeout(btn._mdFeedbackTimer);
+      btn._mdFeedbackTimer = null;
+    }
+  }
+
   function showFeedback(btn, success) {
-    // Freeze the rendered width before swapping text. Without this, the button
-    // shrinks when showing "Copied!" and Gmail's sibling label chips (External,
-    // Inbox, etc.) reflow onto the same line as the subject heading.
-    btn.style.width = btn.offsetWidth + 'px';
-    const origText = btn.textContent;
-    const origBg = btn.style.background;
-    const origBorder = btn.style.borderColor;
-    btn.textContent = success ? 'Copied!' : 'Copy failed';
-    btn.style.background = success ? '#e6f4ea' : '#fce8e6';
-    btn.style.borderColor = success ? '#81c784' : '#e57373';
-    setTimeout(function () {
-      btn.textContent = origText;
-      btn.style.background = origBg;
-      btn.style.borderColor = origBorder;
-      btn.style.width = '';
+    clearFeedbackTimer(btn);
+    btn.setAttribute('aria-busy', 'false');
+    btn.dataset.state = success ? 'success' : 'error';
+    setButtonLabel(btn, success ? 'Copied!' : 'Copy failed');
+    btn.setAttribute('aria-label', success ? 'Thread copied as Markdown' : 'Copy failed');
+    btn._mdFeedbackTimer = setTimeout(function () {
+      delete btn.dataset.state;
+      setButtonLabel(btn, DEFAULT_LABEL);
+      btn.setAttribute('aria-label', DEFAULT_LABEL);
+      btn._mdFeedbackTimer = null;
     }, 2000);
   }
 
   function injectButton() {
-    if (document.getElementById(BTN_ID)) return;
+    if (document.getElementById(BTN_ID) || document.getElementById(ACTIONS_ID)) return;
     const subjectEl = document.querySelector('h2.hP');
     if (!subjectEl) return;
 
+    ensureStyles();
+
+    const actions = document.createElement('div');
+    actions.id = ACTIONS_ID;
+    actions.setAttribute('role', 'group');
+    actions.setAttribute('aria-label', 'Markdown actions');
+
     const btn = document.createElement('button');
     btn.id = BTN_ID;
-    btn.textContent = 'Copy thread as Markdown';
-    btn.title = 'Copy this email thread as Markdown, without signatures or quoted replies';
-    btn.style.cssText = [
-      'display:inline-block',
-      'margin:6px 0 4px 0',
-      'padding:5px 12px',
-      'font-size:12px',
-      'font-family:"Google Sans",Roboto,Arial,sans-serif',
-      'font-weight:500',
-      'line-height:16px',
-      'cursor:pointer',
-      'background:#fff',
-      'border:1px solid #dadce0',
-      'border-radius:4px',
-      'color:#444746',
-      'transition:background 0.15s,border-color 0.15s',
-      'vertical-align:middle'
-    ].join(';');
-
-    btn.addEventListener('mouseover', function () {
-      if (btn.style.background === '#fff') btn.style.background = '#f6f9fe';
-    });
-    btn.addEventListener('mouseout', function () {
-      if (btn.style.background === '#f6f9fe') btn.style.background = '#fff';
-    });
+    btn.type = 'button';
+    btn.title = BUTTON_TITLE;
+    btn.setAttribute('aria-label', DEFAULT_LABEL);
+    btn.setAttribute('aria-busy', 'false');
+    btn.appendChild(createCopyIcon());
+    const label = document.createElement('span');
+    label.className = 'md-copy-thread-btn__label';
+    label.textContent = DEFAULT_LABEL;
+    btn.appendChild(label);
 
     btn.addEventListener('click', async function () {
-      const origText = btn.textContent;
-      btn.textContent = 'Expanding thread…';
+      clearFeedbackTimer(btn);
+      delete btn.dataset.state;
+      setButtonLabel(btn, 'Expanding thread…');
+      btn.setAttribute('aria-label', 'Expanding thread');
+      btn.setAttribute('aria-busy', 'true');
+      btn.dataset.state = 'busy';
       btn.disabled = true;
       try {
         await expandAll();
         const md = extractThread();
         await copyToClipboard(md);
         btn.disabled = false;
-        btn.textContent = origText;
         showFeedback(btn, true);
       } catch (err) {
         console.error('[gmail-md] Copy thread failed:', err);
         btn.disabled = false;
-        btn.textContent = origText;
         showFeedback(btn, false);
       }
     });
 
-    subjectEl.insertAdjacentElement('afterend', btn);
+    actions.appendChild(btn);
+    subjectEl.insertAdjacentElement('afterend', actions);
   }
 
   if (typeof module !== 'undefined') {
