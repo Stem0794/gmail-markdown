@@ -1,6 +1,6 @@
 {
   "name": "gmail-markdown-extension",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Gmail Markdown Chrome extension",
   "private": true,
   "scripts": {

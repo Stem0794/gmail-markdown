@@ -129,6 +129,7 @@ https://github.com/Stem0794/gmail-markdown
 
 | Version | Date | Changes | Status |
 |---------|------|---------|--------|
+| 1.5.1 | 2026-08-05 | Improve Copy Markdown UI, clipboard error handling, and regression coverage. | Ready to upload |
 | 1.5.0 | 2026-06-15 | Add slash commands, editable tables, nested lists, paste fixes, and Gmail scheduling compatibility. | Ready to upload |
 | 1.4.3 | 2026-06-01 | Add Thread Copy support, UI enhancements and performance updates. | Draft |
 | 1.4.2 | 2026-05-27 | Initial release of Thread Copy support and hotfixes. | Published |
