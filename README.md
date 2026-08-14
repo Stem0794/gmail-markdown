@@ -36,13 +36,15 @@ After installation, open or refresh Gmail and compose a message.
 
 ### Install from source
 
-Use this method for development or local testing:
+The source build pins its Markdown parser and generates the browser vendor file locally:
 
 1. Clone or download this repository.
-2. Open `chrome://extensions` in Chrome.
-3. Enable **Developer mode**.
-4. Click **Load unpacked**.
-5. Select the repository folder.
+2. Install Node.js 20 or newer.
+3. Run `npm install`. This generates `vendor/marked.umd.js` from the pinned dependency.
+4. Open `chrome://extensions` in Chrome.
+5. Enable **Developer mode**.
+6. Click **Load unpacked**.
+7. Select the repository folder.
 
 ## Quick start
 
@@ -158,6 +160,10 @@ Markdown for Gmail performs formatting and conversion locally in the browser. It
 
 The extension only requests access needed for its Gmail integration, settings, context menu, and clipboard features. See [PRIVACY.md](PRIVACY.md) for the full privacy policy.
 
+## Security
+
+Markdown output is sanitized before it is inserted into Gmail. Raw executable HTML, unsafe URL schemes, event-handler attributes, embedded objects, and Markdown image injection are blocked. The browser bundle is generated from the exact Marked version pinned in `package.json`, and security regression tests run against that same dependency.
+
 ## Gmail compatibility
 
 Gmail sanitizes email HTML aggressively, so the extension includes formatting safeguards designed specifically for Gmail:
@@ -170,7 +176,7 @@ Gmail sanitizes email HTML aggressively, so the extension includes formatting sa
 
 ### Requirements
 
-- Node.js
+- Node.js 20+
 - Chrome or Chromium for manual testing
 
 ### Install dependencies
@@ -179,6 +185,8 @@ Gmail sanitizes email HTML aggressively, so the extension includes formatting sa
 npm install
 ```
 
+`npm install` also generates `vendor/marked.umd.js` from the pinned Marked dependency. Generated vendor files and Chrome Web Store ZIPs are not committed.
+
 ### Run tests
 
 ```bash
@@ -186,7 +194,7 @@ npm test
 npm run test:e2e
 ```
 
-The test suite covers Markdown and HTML conversion, emoji replacement, themes, slash commands, keyboard navigation, nested lists, editable tables, pasted multiline content, Gmail-safe styling, and Playwright browser flows.
+The test suite covers Markdown and HTML conversion, security regression cases, emoji replacement, themes, slash commands, keyboard navigation, nested lists, editable tables, pasted multiline content, Gmail-safe styling, and Playwright browser flows.
 
 ### Visual testbed
 
@@ -195,31 +203,32 @@ Open `test/visual-testbed.html` in a browser to test formatting and conversion i
 ### Build a Chrome Web Store package
 
 1. Update the `version` field in `manifest.json`.
-2. Keep the version synchronized with `package.json` and `package-lock.json`.
+2. Keep the version synchronized with `package.json`.
 3. Run:
 
 ```bash
 npm run build:zip
 ```
 
-This creates `gmail-markdown-v<version>.zip` from the runtime-file allowlist, excluding tests, development files, old archives, and `node_modules`.
+This refreshes the pinned Marked browser bundle and creates `gmail-markdown-v<version>.zip` from the runtime-file allowlist.
 
 ## Project structure
 
 ```text
-├── manifest.json        # Chrome Extension Manifest V3
-├── background.js        # Service worker, context menus, command handling
-├── contentScript.js     # Compose editor behavior and live formatting
-├── threadCopy.js        # Copy Gmail threads as Markdown
-├── injector.js          # Markdown → HTML conversion
-├── html2md.js           # HTML → Markdown conversion
-├── turndown.js          # HTML-to-Markdown converter
-├── emoji.js             # 1,000+ emoji shortcode mappings
-├── marked.min.js        # Bundled Marked parser
-├── options.html/js/css  # Extension options page
-├── themes.css           # Gmail-compatible theme styles
-├── icons/               # Extension icons
-└── test/                # Unit, E2E, and visual tests
+├── manifest.json          # Chrome Extension Manifest V3
+├── background.js          # Context menus and command routing
+├── contentScript.js       # Compose editor behavior and live formatting
+├── commandBridge.js       # Routes extension commands to the active Gmail editor
+├── markdownSecurity.js    # Marked hardening and final HTML sanitizer
+├── threadCopy.js          # Copy Gmail threads as Markdown
+├── html2md.js             # HTML → Markdown command bridge
+├── turndown.js            # Bundled HTML-to-Markdown converter
+├── emoji.js               # 1,000+ emoji shortcode mappings
+├── vendor/                # Generated pinned browser dependencies
+├── options.html/js/css    # Extension options page
+├── themes.css             # Gmail-compatible theme styles
+├── icons/                 # Extension icons
+└── test/                  # Unit, security, E2E, and visual tests
 ```
 
 ## License

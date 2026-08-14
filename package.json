@@ -3,17 +3,21 @@
   "version": "1.5.1",
   "description": "Gmail Markdown Chrome extension",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
+    "prepare": "npm run vendor",
+    "vendor": "node scripts/vendor-runtime.js",
     "test": "node scripts/run-tests.js",
     "test:e2e": "playwright test",
-    "build:zip": "sh scripts/build-zip.sh"
+    "build:zip": "npm run vendor && sh scripts/build-zip.sh"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",
     "chai": "^4.3.7",
     "jsdom": "^22.1.0",
-    "marked": "^9.1.2",
-    "mocha": "^10.2.0",
-    "turndown": "^7.1.1"
+    "marked": "18.0.9",
+    "mocha": "^10.2.0"
   }
 }
