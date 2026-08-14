@@ -1,10 +1,10 @@
 const { test, expect } = require('@playwright/test');
 const path = require('path');
 
-const MARKED_JS = path.resolve(__dirname, '../../marked.min.js');
+const MARKED_JS = path.resolve(__dirname, '../../vendor/marked.umd.js');
 const EMOJI_JS = path.resolve(__dirname, '../../emoji.js');
+const SECURITY_JS = path.resolve(__dirname, '../../markdownSecurity.js');
 const CONTENT_JS = path.resolve(__dirname, '../../contentScript.js');
-const INJECTOR_JS = path.resolve(__dirname, '../../injector.js');
 
 async function setupPage(page, overrides = {}) {
   const opts = {
@@ -33,6 +33,7 @@ async function setupPage(page, overrides = {}) {
   });
   await page.addScriptTag({ path: MARKED_JS });
   await page.addScriptTag({ path: EMOJI_JS });
+  await page.addScriptTag({ path: SECURITY_JS });
   await page.addScriptTag({ path: CONTENT_JS });
   await page.locator('[aria-label="Message Body"]').click();
 }
@@ -1018,20 +1019,10 @@ test('convert-on-paste keeps raw HTML literal while converting Markdown', async 
   await expect(page.locator(EDITOR)).toContainText('<img src=x>');
 });
 
-test('context-menu injector keeps raw HTML literal while converting Markdown', async ({ page }) => {
-  await page.setContent(
-    '<!DOCTYPE html><html><body>' +
-    '<div aria-label="Message Body" contenteditable="true">' +
-    '**safe** &lt;img src=x&gt; &lt;javascript:alert(1)&gt;</div>' +
-    '</body></html>'
-  );
-  await page.addScriptTag({
-    content: `window.chrome = {
-      storage: { sync: { get: (_d, cb) => cb({ gfm: true }) } }
-    };`,
-  });
-  await page.addScriptTag({ path: MARKED_JS });
-  await page.addScriptTag({ path: INJECTOR_JS });
+test('static runtime path keeps raw HTML literal while converting Markdown', async ({ page }) => {
+  await setupPage(page);
+  await setEditorText(page, '**safe** <img src=x> <javascript:alert(1)>');
+  await page.keyboard.press('Control+Shift+M');
 
   await expect(page.locator(`${EDITOR} strong`)).toBeAttached();
   await expect(page.locator(`${EDITOR} img`)).toHaveCount(0);

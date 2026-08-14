@@ -58,8 +58,8 @@
       }
     }
 
-    // Absolute fallback: first editor on page
-    return document.querySelector(SELECTOR);
+    // Do not guess when multiple Gmail drafts may be open.
+    return null;
   }
 
   function convertLinksToReadable(text) {
@@ -1631,6 +1631,9 @@
     body.addEventListener('paste', (e) => {
       const text = e.clipboardData.getData('text/plain');
       if (!text) return;
+      const html = e.clipboardData.getData('text/html');
+      // Preserve Gmail's native rich-content paste unless Markdown conversion was requested.
+      if (!opts.convertOnPaste && html) return;
       e.preventDefault();
       e.stopImmediatePropagation();
       if (opts.convertOnPaste) {
@@ -1672,7 +1675,16 @@
 
     scanAndAttach();
 
-    const observer = new MutationObserver(() => scanAndAttach());
+    let scanScheduled = false;
+    const scheduleScan = () => {
+      if (scanScheduled) return;
+      scanScheduled = true;
+      window.setTimeout(() => {
+        scanScheduled = false;
+        scanAndAttach();
+      }, 0);
+    };
+    const observer = new MutationObserver(scheduleScan);
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
@@ -1739,6 +1751,16 @@
     chrome.storage.sync.get(DEFAULTS, (opts) => {
       applyTheme(opts.theme);
       setupCentralObserver(opts);
+
+      if (chrome.storage.onChanged && typeof chrome.storage.onChanged.addListener === 'function') {
+        chrome.storage.onChanged.addListener((changes, areaName) => {
+          if (areaName !== 'sync') return;
+          Object.keys(DEFAULTS).forEach((key) => {
+            if (changes[key]) opts[key] = changes[key].newValue ?? DEFAULTS[key];
+          });
+          if (changes.theme) applyTheme(opts.theme);
+        });
+      }
 
       document.addEventListener('keydown', (e) => {
         if (opts.shortcut && matchesShortcut(e, opts.shortcut)) {
