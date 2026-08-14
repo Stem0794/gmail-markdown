@@ -16,14 +16,10 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - run: npm install
+          cache: npm
+      - run: npm ci
       - run: npm audit --audit-level=low
       - run: npm test
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - run: npm run build:zip
-      - uses: actions/upload-artifact@v4
-        with:
-          name: generated-lockfile
-          path: package-lock.json
-          if-no-files-found: error
