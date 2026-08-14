@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="icons/icon128.png" alt="Markdown for Gmail logo" width="128" height="128">
+</p>
+
 # Markdown for Gmail
 
 Write Gmail messages in Markdown, format them as you type, and convert drafts to clean rich text without leaving Gmail.
