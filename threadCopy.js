@@ -392,10 +392,16 @@
     module.exports = { htmlToMarkdown, extractThread, isCollapsed, injectButton };
   }
 
+  let injectionScheduled = false;
   const observer = new MutationObserver(function () {
-    if (!document.getElementById(BTN_ID) && document.querySelector('h2.hP')) {
-      injectButton();
-    }
+    if (injectionScheduled) return;
+    injectionScheduled = true;
+    window.setTimeout(function () {
+      injectionScheduled = false;
+      if (!document.getElementById(BTN_ID) && document.querySelector('h2.hP')) {
+        injectButton();
+      }
+    }, 0);
   });
 
   observer.observe(document.body, { childList: true, subtree: true });
