@@ -14,9 +14,9 @@
     "build:zip": "npm run vendor && sh scripts/build-zip.sh"
   },
   "devDependencies": {
-    "@playwright/test": "^1.56.1",
+    "@playwright/test": "1.62.1",
     "chai": "^4.3.7",
-    "jsdom": "^22.1.0",
+    "jsdom": "30.0.1",
     "marked": "18.0.9"
   }
 }
