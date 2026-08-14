@@ -27,9 +27,10 @@ describe('Markdown security', function() {
 
   it('blocks the historical image-alt attribute injection vector', function() {
     const html = marked.parse('![" onerror="alert(1)"](https://example.com/404.jpg)');
-    assert.notInclude(html.toLowerCase(), '<img');
-    assert.notInclude(html.toLowerCase(), 'onerror');
-    assert.include(html, '[image:');
+    const parsed = new JSDOM(html).window.document;
+    assert.lengthOf(parsed.querySelectorAll('img'), 0);
+    assert.lengthOf(parsed.querySelectorAll('[onerror]'), 0);
+    assert.equal(parsed.querySelector('p').textContent, '[image: " onerror="alert(1)"]');
   });
 
   it('removes unsafe URL schemes while preserving safe links', function() {

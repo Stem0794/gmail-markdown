@@ -17,5 +17,7 @@ jobs:
         with:
           node-version: 22
       - run: npm install
+      - name: Report dependency audit
+        run: npm audit --json || true
       - run: npm test
       - run: npm run build:zip
