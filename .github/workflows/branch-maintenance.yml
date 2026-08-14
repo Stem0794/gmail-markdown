@@ -45,7 +45,7 @@ jobs:
           p.write_text(text)
           PY
       - name: Generate exact dependency lockfile
-        run: npm install --package-lock-only
+        run: npm install --package-lock-only --ignore-scripts
       - name: Commit maintenance changes
         run: |
           git config user.name 'github-actions[bot]'
