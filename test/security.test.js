@@ -48,7 +48,6 @@ describe('Markdown security', function() {
   });
 
   it('parses the former link-label ReDoS shape within a bounded time', function() {
-    this.timeout(3000);
     const source = '[' + Array.from({ length: 80 }, (_, i) => '````code' + i + '````').join(' ');
     const started = Date.now();
     marked.parse(source);

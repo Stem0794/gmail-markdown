@@ -17,7 +17,11 @@ jobs:
         with:
           node-version: 22
       - run: npm install
-      - name: Report dependency audit
-        run: npm audit --json || true
+      - run: npm audit --audit-level=moderate
       - run: npm test
       - run: npm run build:zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: generated-lockfile
+          path: package-lock.json
+          if-no-files-found: error

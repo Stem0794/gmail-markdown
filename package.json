@@ -9,7 +9,7 @@
   "scripts": {
     "prepare": "npm run vendor",
     "vendor": "node scripts/vendor-runtime.js",
-    "test": "node scripts/run-tests.js",
+    "test": "node --test --require ./scripts/test-globals.js test/*.test.js",
     "test:e2e": "playwright test",
     "build:zip": "npm run vendor && sh scripts/build-zip.sh"
   },
@@ -17,7 +17,6 @@
     "@playwright/test": "^1.56.1",
     "chai": "^4.3.7",
     "jsdom": "^22.1.0",
-    "marked": "18.0.9",
-    "mocha": "^10.2.0"
+    "marked": "18.0.9"
   }
 }
