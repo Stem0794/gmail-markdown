@@ -1,52 +1,75 @@
 # Markdown for Gmail
 
-A Chrome extension that lets you compose Gmail messages in Markdown and convert them to rich HTML with a single shortcut or right-click.
+Write Gmail messages in Markdown, format them as you type, and convert drafts to clean rich text without leaving Gmail.
 
-## Features
+**[Install Markdown for Gmail from the Chrome Web Store](https://chromewebstore.google.com/detail/markdown-for-gmail/njiajhmgkgphfckfkdflnabadlpdllmk)**
 
-- **Markdown to Rich Text** — write in Markdown, then press `Ctrl+Shift+M` (or right-click → *Convert Markdown to Rich Text*) to render it as formatted HTML inside the Gmail compose window.
-- **HTML to Markdown** — reverse the conversion with `Ctrl+Shift+H` (or right-click → *Convert HTML to Markdown*).
-- **Auto-convert on paste** — optionally convert pasted Markdown automatically.
-- **Copy Thread as Markdown** — copy entire email threads as clean Markdown without signatures or quoted replies using the compact "Copy Markdown" button in its own row below the email subject.
-- **GitHub-flavored Markdown** — tables, task lists, strikethrough, and more via the [Marked](https://github.com/markedjs/marked) library.
-- **Emoji shortcodes** — type `:rocket:` or `:heart:` and they become 🚀 and ❤️. Over 1 000 GitHub-style codes are supported. Emoji characters you type directly (e.g. 👍) are left untouched.
-- **Readable links** — `[text](url)` is converted to `text (url)` so recipients see real URLs.
-- **Auto-format shortcuts** — live Markdown shortcuts as you type (see below).
-- **Slash command menu** — type `/` to insert headings, lists, quotes, code blocks, tables, dividers, and notes without leaving the keyboard.
-- **Nested lists** — press `Tab` to nest the current list item and `Shift+Tab` to move it back one level.
-- **Paste-safe editing** — pasted multiline text keeps its original line order when individual lines are later converted into lists or other blocks.
-- **Themes** — choose the *Default* or *Bold* theme in the options page.
-- **Custom keyboard shortcuts** — set any modifier+key combo (e.g. `Cmd+Shift+M` on macOS). The extension command is updated automatically when you save.
+Free and open source. All formatting and conversion happen locally in your browser.
 
-## Installation
+## Highlights
+
+- **Markdown → rich text** — write Markdown, then press `Ctrl+Shift+M` or use the right-click menu to render it inside Gmail.
+- **Rich text → Markdown** — reverse the conversion with `Ctrl+Shift+H`.
+- **Live auto-formatting** — turn headings, lists, blockquotes, emphasis, code, and dividers into formatted content as you type.
+- **Slash commands** — type `/` to insert headings, lists, quotes, code blocks, tables, dividers, and notes from the keyboard.
+- **Editable tables and nested lists** — move through table cells with `Tab`, add rows and columns, and indent or outdent list items with `Tab` / `Shift+Tab`.
+- **GitHub Flavored Markdown** — tables, task lists, strikethrough, and more via [Marked](https://github.com/markedjs/marked).
+- **Emoji shortcodes** — type `:rocket:`, `:heart:`, and 1,000+ GitHub-style shortcodes.
+- **Copy threads as Markdown** — export Gmail conversations as clean Markdown without signatures or duplicated quoted replies.
+- **Paste-friendly editing** — pasted multiline content keeps its order when you format individual lines later.
+- **Gmail-compatible themes** — choose between Default and Bold styling in the extension options.
+- **Custom shortcuts** — replace the default Markdown conversion shortcut with your preferred modifier+key combination.
+
+## Install
+
+### Chrome Web Store
+
+The easiest way to install the extension is from the Chrome Web Store:
+
+**[Add Markdown for Gmail to Chrome](https://chromewebstore.google.com/detail/markdown-for-gmail/njiajhmgkgphfckfkdflnabadlpdllmk)**
+
+After installation, open or refresh Gmail and compose a message.
+
+### Install from source
+
+Use this method for development or local testing:
 
 1. Clone or download this repository.
 2. Open `chrome://extensions` in Chrome.
-3. Enable **Developer mode** (top-right toggle).
-4. Click **Load unpacked** and select the repository folder.
+3. Enable **Developer mode**.
+4. Click **Load unpacked**.
+5. Select the repository folder.
 
-## Gmail Compatibility
+## Quick start
 
-This extension includes a dedicated **Gmailify Engine** designed to ensure your Markdown formatting survives Gmail's aggressive style sanitization:
-
-- **Blockquote Preservation:** Gmail strips CSS from standard `<blockquote>` tags. We automatically convert them to styled `<div>` elements with inline borders to maintain the visual quote style.
-- **Inline Style Injection:** Styles are inserted directly into the HTML to bypass Gmail's tendency to strip separate `<style>` blocks.
-- **CSS Sanitization Guard:** Our test suite actively monitors against the use of CSS properties that Gmail is known to strip (like Flexbox, Grid, and absolute positioning) to ensure your emails look consistent across all devices.
-
-## Usage
-
-1. Open Gmail and compose a new message.
-2. Write your email using Markdown syntax.
+1. Open Gmail and start a new message.
+2. Write your message using Markdown.
 3. Press **Ctrl+Shift+M** or right-click and choose **Convert Markdown to Rich Text**.
-4. The Markdown is replaced with formatted HTML inside the compose area.
+4. Continue editing the formatted message normally in Gmail.
 
-To reverse: press **Ctrl+Shift+H** or right-click → **Convert HTML to Markdown**.
+To convert formatted content back to Markdown, press **Ctrl+Shift+H** or use **Convert HTML to Markdown** from the right-click menu.
 
-### Auto-format shortcuts
+Example Markdown:
 
-When **Auto-format** is enabled, the extension converts Markdown syntax live as you type — no need to trigger a full conversion.
+```md
+# Project update
 
-| Type… | Then press | Result |
+Hi team,
+
+- Shipped the new onboarding flow
+- Fixed the billing regression
+- Next: performance testing
+
+> Launch is still scheduled for Friday.
+
+Thanks!
+```
+
+## Live auto-formatting
+
+When **Auto-format** is enabled, Markdown syntax is converted as you type.
+
+| Type | Then press | Result |
 |---|---|---|
 | `#` | Space | Heading 1 |
 | `##` | Space | Heading 2 |
@@ -60,15 +83,15 @@ When **Auto-format** is enabled, the extension converts Markdown syntax live as 
 | `~~text~~` | Space | ~~Strikethrough~~ |
 | `` `text` `` | Space | `Inline code` |
 
-To remove heading or blockquote formatting, place the cursor at the very start of the line and press **Backspace**.
+To remove heading or blockquote formatting, place the cursor at the start of the line and press **Backspace**.
 
-### Slash commands
+## Slash commands
 
-At the start of a compose line, type `/` to open the formatting menu. Continue typing to filter it, then:
+At the start of a compose line, type `/` to open the formatting menu. Keep typing to filter commands.
 
-- Use **Arrow Up** and **Arrow Down** to change the selected command. The menu automatically scrolls to keep the selected option visible.
-- Press **Enter** or **Tab** to apply the selected command.
-- Press **Escape** to close the menu without changing the typed command.
+- Use **Arrow Up** and **Arrow Down** to change the selected command.
+- Press **Enter** or **Tab** to apply it.
+- Press **Escape** to close the menu.
 - Click a command to apply it with the mouse.
 
 | Command | Result |
@@ -80,80 +103,71 @@ At the start of a compose line, type `/` to open the formatting menu. Continue t
 | `/numbered` | Numbered list |
 | `/quote` | Blockquote |
 | `/code` | Code block |
-| `/table` | Editable 2-column table with a header and two rows |
+| `/table` | Editable 2-column table |
 | `/divider` | Horizontal rule |
-| `/note` | Gray callout for important information |
+| `/note` | Gray callout |
 
 Aliases such as `/title`, `/heading`, `/subheading`, `/bullet`, `/ordered`, `/blockquote`, and `/codeblock` are also searchable.
 
-### Editing lists
+## Lists and tables
+
+### Nested lists
 
 - Press **Tab** inside a list item to nest it under the previous item.
 - Press **Shift+Tab** to move a nested item back one level.
-- Bullet and numbered list conversion preserves the current line's position, including lines edited after a multiline paste.
+- List conversion preserves the current line position, including content edited after a multiline paste.
 
-### Editing tables
+### Editable tables
 
 `/table` inserts a two-column table with one header row and two body rows.
 
-- Start typing immediately in the first header cell.
 - Press **Tab** to move to the next cell.
 - Press **Shift+Tab** to move to the previous cell.
-- Press **Tab** from the final cell to add a new row.
-- Select a cell and use **Add row** to insert a body row immediately below it.
-- Select a cell and use **Add column** to insert a column immediately to its right.
-- Use **Delete row** or **Delete column** to remove the selected cell's row or column.
+- Press **Tab** from the final cell to add a row.
+- Use **Add row** or **Add column** to expand the table.
+- Use **Delete row** or **Delete column** to remove content.
 - Deleting the final row or column removes the table and leaves a writable line.
-- Table styling survives Gmail rendering without changing Gmail's native scheduling widgets.
 
-### Options
+Table styling is designed to survive Gmail rendering without interfering with Gmail's native scheduling widgets.
 
-Click the extension icon → *Options* (or go to `chrome://extensions` → *Details* → *Extension options*) to configure:
+## Options
+
+Open the extension icon → **Options**, or go to `chrome://extensions` → **Details** → **Extension options**.
 
 | Option | Description |
 |---|---|
-| Convert on Paste | Auto-convert Markdown when you paste text |
-| GitHub flavored Markdown | Enable GFM extensions (tables, task lists, etc.) |
-| Theme | Choose between **Default** or **Bold** theme style |
+| Convert on Paste | Automatically convert Markdown when pasting text |
+| GitHub flavored Markdown | Enable GFM features such as tables and task lists |
+| Theme | Choose **Default** or **Bold** styling |
 | Custom Shortcut | Override the default `Ctrl+Shift+M` shortcut |
-| Disable default shortcut | Turn off the built-in keyboard command |
+| Disable default shortcut | Turn off the built-in Markdown conversion command |
 
 ### Themes
 
-Themes control how your rendered Markdown text appears in the Gmail compose window. You can switch between them in the extension options page.
+**Default** is the recommended minimal theme, with Gmail-compatible typography and subtle heading and blockquote styling.
 
-#### Default *(Standard)*
-The recommended minimal style. It uses standard Gmail-compatible typography with subtle accents.
-- **Headings:** Slightly larger than body text (1.4em) for clear visual hierarchy.
-- **Blockquotes:** Elegant thin gray left border with slightly muted text to distinguish quotes.
+**Bold** increases visual contrast with stronger, uppercase headings while keeping the same Gmail-compatible blockquote treatment.
 
-#### Bold *(High Contrast)*
-A more assertive theme designed for better readability of structure.
-- **Headings:** Headers are made **Uppercase** and **Bold** to create a distinct professional divide between sections.
-- **Blockquotes:** Same consistent border as the Default theme to maintain Gmail compatibility.
+## Privacy
 
-## Project Structure
+Markdown for Gmail performs formatting and conversion locally in the browser. It does not send email content to an external service.
 
-```
-├── manifest.json        # Chrome Extension Manifest v3
-├── background.js        # Service worker — context menus & command handling
-├── contentScript.js     # Content script — paste/send observers, shortcut matching
-├── injector.js          # Dynamically injected for Markdown → HTML conversion
-├── html2md.js           # Dynamically injected for HTML → Markdown conversion
-├── turndown.js          # Lightweight HTML-to-Markdown converter
-├── emoji.js             # 1 000+ emoji shortcode mappings
-├── marked.min.js        # Marked v9.1.2 (bundled)
-├── options.html/js/css  # Extension options page
-├── themes.css           # Theme stylesheets
-├── icons/icon.png       # Toolbar icon
-└── test/                # Mocha + Chai test suite
-```
+The extension only requests access needed for its Gmail integration, settings, context menu, and clipboard features. See [PRIVACY.md](PRIVACY.md) for the full privacy policy.
+
+## Gmail compatibility
+
+Gmail sanitizes email HTML aggressively, so the extension includes formatting safeguards designed specifically for Gmail:
+
+- Blockquotes are rendered in a Gmail-safe form so their visual styling is preserved.
+- Styles are applied inline where needed instead of relying on separate style blocks Gmail may remove.
+- Tests guard against unsupported layout CSS that could be stripped or interfere with Gmail UI.
 
 ## Development
 
-### Prerequisites
+### Requirements
 
-- Node.js (for running tests)
+- Node.js
+- Chrome or Chromium for manual testing
 
 ### Install dependencies
 
@@ -164,37 +178,53 @@ npm install
 ### Run tests
 
 ```bash
-npm run test
+npm test
 npm run test:e2e
 ```
 
-The test suite covers:
-- Core Markdown-to-HTML conversion
-- HTML-to-Markdown reverse conversion
-- Emoji replacement logic
-- Theme application
-- Slash command filtering, keyboard navigation, auto-scrolling, and insertion
-- Heading formatting that remains active after typing begins
-- Nested-list indentation with `Tab` and `Shift+Tab`
-- Editable table insertion, cell navigation, row creation, and row/column deletion
-- Pasted multiline content and position-preserving list conversion
-- **Gmail Sanitization Defense:** Verifies that no Gmail-unsupported CSS (Flexbox, Grid, absolute positioning, etc.) is used in produced styles.
-- **Playwright E2E Tests:** Fully automated end-to-end tests covering keyboard shortcuts and auto-formatting live in the browser.
+The test suite covers Markdown and HTML conversion, emoji replacement, themes, slash commands, keyboard navigation, nested lists, editable tables, pasted multiline content, Gmail-safe styling, and Playwright browser flows.
 
-### Visual Testbed
+### Visual testbed
 
-A standalone mock testing document is available at `test/visual-testbed.html`. You can open this file in any web browser to see a mock Gmail composition window. It allows you to trigger inline Markdown formatting and conversions visually without installing the extension.
+Open `test/visual-testbed.html` in a browser to test formatting and conversion in a mock Gmail compose window without installing the extension.
 
-### Packaging for the Chrome Web Store
+### Build a Chrome Web Store package
 
 1. Update the `version` field in `manifest.json`.
-2. Run `npm run build:zip`. This generates `gmail-markdown-v<version>.zip` from an explicit runtime-file allowlist, excluding tests, development files, old archives, and `node_modules`.
-3. Upload to the [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole).
+2. Keep the version synchronized with `package.json` and `package-lock.json`.
+3. Run:
+
+```bash
+npm run build:zip
+```
+
+This creates `gmail-markdown-v<version>.zip` from the runtime-file allowlist, excluding tests, development files, old archives, and `node_modules`.
+
+## Project structure
+
+```text
+├── manifest.json        # Chrome Extension Manifest V3
+├── background.js        # Service worker, context menus, command handling
+├── contentScript.js     # Compose editor behavior and live formatting
+├── threadCopy.js        # Copy Gmail threads as Markdown
+├── injector.js          # Markdown → HTML conversion
+├── html2md.js           # HTML → Markdown conversion
+├── turndown.js          # HTML-to-Markdown converter
+├── emoji.js             # 1,000+ emoji shortcode mappings
+├── marked.min.js        # Bundled Marked parser
+├── options.html/js/css  # Extension options page
+├── themes.css           # Gmail-compatible theme styles
+├── icons/               # Extension icons
+└── test/                # Unit, E2E, and visual tests
+```
 
 ## License
 
-See [LICENSE](LICENSE) for details.
+See [LICENSE](LICENSE).
 
-## Privacy Policy
+## Links
 
-See [PRIVACY.md](PRIVACY.md) for details.
+- [Install from the Chrome Web Store](https://chromewebstore.google.com/detail/markdown-for-gmail/njiajhmgkgphfckfkdflnabadlpdllmk)
+- [Privacy policy](PRIVACY.md)
+- [Chrome Web Store release notes and listing](CHROMEWEBSTORE.md)
+- [Report an issue](https://github.com/Stem0794/gmail-markdown/issues)
